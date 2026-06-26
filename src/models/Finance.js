@@ -30,6 +30,17 @@ const financeSchema = new mongoose.Schema({
         required: [true, 'Data é obrigatória'],
         default: () => new Date().toISOString().split('T')[0]
     },
+     // NOVOS CAMPOS PARA CONTROLE MENSAL
+    month: {
+        type: Number,
+        required: true,
+        default: () => new Date().getMonth() + 1 // 1-12
+    },
+    year: {
+        type: Number,
+        required: true,
+        default: () => new Date().getFullYear()
+    },
     userId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
@@ -40,6 +51,7 @@ const financeSchema = new mongoose.Schema({
 });
 
 // Índice para consultas rápidas
+financeSchema.index({ userId: 1, year: 1, month: 1, createdAt: -1 });
 financeSchema.index({ userId: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Finance', financeSchema);

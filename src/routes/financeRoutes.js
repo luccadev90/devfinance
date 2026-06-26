@@ -44,6 +44,18 @@ router.get('/api/export', financeController.exportData);
 router.get('/export/pdf', financeController.exportPDF); // esta aqui
 router.get('/test-data', financeController.addTestData);
 
+// Rota Sobre (pública)
+router.get('/sobre', (req, res) => {
+    res.render('sobre', {
+        title: 'Sobre - DevFinance',
+        isAuthenticated: req.session && req.session.userId ? true : false,
+        user: req.session ? {
+            name: req.session.userName,
+            email: req.session.userEmail
+        } : null
+    });
+});
+
 // Rota de fallback 404
 router.use((req, res) => {
     res.status(404).render('404', {

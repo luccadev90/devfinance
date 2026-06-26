@@ -67,41 +67,99 @@ exports.addCommonData = async (req, res, next) => {
 // CONTROLADORES - ROTAS PRINCIPAIS
 // ============================================
 
-// GET / - Listar finanças do usuário logado
+// GET / - Listar finanças com filtro mensal
 exports.getFinances = async (req, res) => {
     try {
-         // Garantir que o usuário está logado
-        if (!req.session || !req.session.userId) {
-            req.flash('error', 'Faça login para acessar esta página');
-            return res.redirect('/login');
-        }
-
-        const userId = req.session.userId; // ← PEGAR ID DO USUÁRIO LOGADO
+        const userId = req.session.userId;
         const statusFilter = req.query.status || 'all';
         const typeFilter = req.query.type || 'all';
+        const monthFilter = req.query.month || 'current'; // 'current' ou número do mês (1-12)
+        const yearFilter = req.query.year || new Date().getFullYear();
 
-        const filter = { userId: userId }; // ← FILTRAR POR USUÁRIO
+        console.log(`📅 Filtro: Mês=${monthFilter}, Ano=${yearFilter}`);
+
+        // Construir filtro base
+        const filter = { userId: userId };
+
+        // FILTRO POR MÊS E ANO
+        if (monthFilter === 'current') {
+            // Mês atual
+            const now = new Date();
+            filter.month = now.getMonth() + 1;
+            filter.year = now.getFullYear();
+        } else if (monthFilter && !isNaN(monthFilter)) {
+            // Mês específico (1-12)
+            filter.month = parseInt(monthFilter);
+            filter.year = parseInt(yearFilter);
+        }
+
+        // FILTROS ADICIONAIS
         if (statusFilter !== 'all') filter.status = statusFilter;
         if (typeFilter !== 'all') filter.type = typeFilter;
 
+        console.log('🔍 Filtro aplicado:', filter);
+
+        // Buscar dados
         const finances = await Finance.find(filter)
-            .sort({ createdAt: -1 })
+            .sort({ date: -1, createdAt: -1 })
             .lean();
 
+        // Buscar também pendências de meses anteriores
+        const pendingFilter = {
+            userId: userId,
+            status: 'pending'
+        };
+
+        // Se for mês atual, incluir pendências de meses anteriores
+        if (monthFilter === 'current') {
+            const now = new Date();
+            pendingFilter.month = { $lt: now.getMonth() + 1 };
+            pendingFilter.year = { $lte: now.getFullYear() };
+        }
+
+        const pendingFromPrevious = await Finance.find(pendingFilter)
+            .sort({ year: -1, month: -1, createdAt: -1 })
+            .lean();
+
+        console.log(`📊 Mesmo mês: ${finances.length} | Pendências anteriores: ${pendingFromPrevious.length}`);
+
+        // Combinar: primeiro as pendências anteriores, depois as do mês atual
+        const allFinances = [...pendingFromPrevious, ...finances];
+
+        // Calcular totais
         const totalItems = await Finance.countDocuments({ userId: userId });
-        const balances = calculateBalances(finances);
+        const balances = calculateBalances(allFinances);
+
+        // Lista de meses disponíveis para o usuário
+        const availableMonths = await Finance.aggregate([
+            { $match: { userId: userId } },
+            { $group: {
+                _id: { year: '$year', month: '$month' },
+                year: { $first: '$year' },
+                month: { $first: '$month' },
+                count: { $sum: 1 }
+            }},
+            { $sort: { '_id.year': -1, '_id.month': -1 } }
+        ]);
+
+        console.log('📅 Meses disponíveis:', availableMonths);
 
         res.render('index', {
             title: 'DevFinance - Dashboard',
-            finances: finances,
+            finances: allFinances,
             balances: balances,
             totalItems: totalItems,
-            filteredItems: finances.length,
+            filteredItems: allFinances.length,
             statusFilter: statusFilter,
-            typeFilter: typeFilter
+            typeFilter: typeFilter,
+            monthFilter: monthFilter,
+            yearFilter: yearFilter,
+            availableMonths: availableMonths,
+            currentMonth: new Date().getMonth() + 1,
+            currentYear: new Date().getFullYear()
         });
     } catch (error) {
-        console.error('Erro ao buscar finanças:', error);
+        console.error('❌ Erro ao buscar finanças:', error);
         res.status(500).render('error', {
             title: 'Erro',
             message: 'Erro ao carregar os dados. Tente novamente.'
@@ -115,11 +173,15 @@ exports.showAddForm = (req, res) => {
     });
 };
 
-// POST /add - Adicionar finança do usuário logado
+// POST /add - Adicionar nova finança
 exports.addFinance = async (req, res) => {
     try {
         const { description, amount, type, status, date } = req.body;
-        const userId = req.session.userId; // ← PEGAR ID DO USUÁRIO
+        const userId = req.session.userId;
+
+        const parsedDate = date ? new Date(date) : new Date();
+        const month = parsedDate.getMonth() + 1;
+        const year = parsedDate.getFullYear();
 
         const newFinance = new Finance({
             description: description.trim(),
@@ -127,15 +189,17 @@ exports.addFinance = async (req, res) => {
             type: type || 'income',
             status: status || 'pending',
             date: date || new Date().toISOString().split('T')[0],
-            userId: userId // ← ADICIONAR userId
+            month: month,
+            year: year,
+            userId: userId
         });
 
         await newFinance.save();
-        console.log(`✅ Adicionado: ${newFinance.description} (${newFinance.status})`);
+        console.log(`✅ Adicionado: ${newFinance.description} (${newFinance.status}) - ${month}/${year}`);
         
         res.redirect('/');
     } catch (error) {
-        console.error('Erro ao adicionar finança:', error);
+        console.error('❌ Erro ao adicionar finança:', error);
         res.status(400).render('add', {
             title: 'Adicionar Finança',
             error: error.message
@@ -179,6 +243,14 @@ exports.updateFinance = async (req, res) => {
         const userId = req.session.userId;
         const { description, amount, type, status, date } = req.body;
 
+        // Se a data mudou, atualizar mês e ano
+        let month, year;
+        if (date) {
+            const parsedDate = new Date(date);
+            month = parsedDate.getMonth() + 1;
+            year = parsedDate.getFullYear();
+        }
+
         const updateData = {
             description: description.trim(),
             amount: parseFloat(amount),
@@ -188,7 +260,11 @@ exports.updateFinance = async (req, res) => {
             updatedAt: new Date()
         };
 
-        // Atualizar apenas se for do usuário logado
+        if (month && year) {
+            updateData.month = month;
+            updateData.year = year;
+        }
+
         const finance = await Finance.findOneAndUpdate(
             { _id: id, userId: userId },
             updateData,
@@ -202,10 +278,10 @@ exports.updateFinance = async (req, res) => {
             });
         }
 
-        console.log(`✏️ Atualizado: ${finance.description} (${finance.status})`);
+        console.log(`✏️ Atualizado: ${finance.description} - ${finance.month}/${finance.year}`);
         res.redirect('/');
     } catch (error) {
-        console.error('Erro ao atualizar finança:', error);
+        console.error('❌ Erro ao atualizar finança:', error);
         res.status(400).send('Erro ao atualizar. Verifique os dados.');
     }
 };

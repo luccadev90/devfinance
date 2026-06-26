@@ -149,6 +149,7 @@ exports.register = async (req, res) => {
         console.error('❌ Erro no cadastro:', error);
         req.flash('error', 'Erro ao cadastrar. Verifique os dados.');
         res.redirect('/register');
+        
     }
 };
 

@@ -95,24 +95,52 @@
         </div>
         <div class="col-md-8">
             <form method="GET" action="/" class="row g-2">
-                <div class="col-md-5">
+                
+                <!-- Filtro de Mês -->
+                <div class="col-md-3">
+                    <select name="month" class="form-select form-select-sm">
+                        <option value="current" <%= monthFilter === 'current' ? 'selected' : '' %>>
+                            📅 Mês Atual (<%= currentMonth %>/<%= currentYear %>)
+                        </option>
+                        <% if (availableMonths && availableMonths.length > 0) { %>
+                            <% availableMonths.forEach(month => { %>
+                                <option value="<%= month.month %>" 
+                                        <%= monthFilter == month.month && yearFilter == month.year ? 'selected' : '' %>>
+                                    📆 <%= String(month.month).padStart(2, '0') %>/<%= month.year %>
+                                    (<%= month.count %> itens)
+                                </option>
+                            <% }) %>
+                        <% } %>
+                    </select>
+                </div>
+
+                <!-- Filtro de Status -->
+                <div class="col-md-3">
                     <select name="status" class="form-select form-select-sm">
                         <option value="all" <%= statusFilter === 'all' ? 'selected' : '' %>>Todos os Status</option>
                         <option value="pending" <%= statusFilter === 'pending' ? 'selected' : '' %>>⏳ Pendente</option>
                         <option value="paid" <%= statusFilter === 'paid' ? 'selected' : '' %>>✅ Pago</option>
                     </select>
                 </div>
-                <div class="col-md-5">
+
+                <!-- Filtro de Tipo -->
+                <div class="col-md-3">
                     <select name="type" class="form-select form-select-sm">
                         <option value="all" <%= typeFilter === 'all' ? 'selected' : '' %>>Todos os Tipos</option>
                         <option value="income" <%= typeFilter === 'income' ? 'selected' : '' %>>⬆ Receita</option>
                         <option value="expense" <%= typeFilter === 'expense' ? 'selected' : '' %>>⬇ Despesa</option>
                     </select>
                 </div>
-                <div class="col-md-2">
-                    <button type="submit" class="btn btn-primary btn-sm w-100">
-                        <i class="bi bi-search"></i> Filtrar
-                    </button>
+
+                <div class="col-md-3">
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary btn-sm flex-grow-1">
+                            <i class="bi bi-search"></i> Filtrar
+                        </button>
+                        <a href="/" class="btn btn-secondary btn-sm">
+                            <i class="bi bi-x-circle"></i>
+                        </a>
+                    </div>
                 </div>
             </form>
         </div>
@@ -128,6 +156,73 @@
             </small>
         </div>
     <% } %>
+</div>
+
+  <!-- Informações do mês atual -->
+    <div class="mt-2">
+        <small class="text-muted">
+            <i class="bi bi-info-circle"></i>
+            <% if (monthFilter === 'current') { %>
+                Mostrando <strong>mês atual</strong> 
+                (<%= new Date().toLocaleString('pt-BR', { month: 'long', year: 'numeric' }) %>)
+                + pendências de meses anteriores
+            <% } else { %>
+                Mostrando <strong>histórico</strong> do mês 
+                <%= String(monthFilter).padStart(2, '0') %>/<%= yearFilter %>
+            <% } %>
+            | Total: <strong><%= finances.length %></strong> transações
+            <% if (finances.filter(f => f.status === 'pending').length > 0) { %>
+                | ⚠️ <strong class="text-warning">
+                    <%= finances.filter(f => f.status === 'pending').length %>
+                </strong> pendentes
+            <% } %>
+        </small>
+    </div>
+</div>
+
+<!-- ===== CARDS DE ESTATÍSTICAS ===== -->
+<div class="row mb-4 g-3">
+    <!-- Card do Mês -->
+    <div class="col-md-12">
+        <div class="card card-stats card-balance shadow-sm" style="border-left-color: #6f42c1;">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-subtitle mb-2 text-muted">
+                            <i class="bi bi-calendar-event"></i> 
+                            Período: 
+                            <% if (monthFilter === 'current') { %>
+                                <%= new Date().toLocaleString('pt-BR', { month: 'long', year: 'numeric' }) %>
+                                <span class="badge bg-success">Mês Atual</span>
+                            <% } else { %>
+                                <%= String(monthFilter).padStart(2, '0') %>/<%= yearFilter %>
+                                <span class="badge bg-primary">Histórico</span>
+                            <% } %>
+                        </h6>
+                        <div>
+                            <span class="badge bg-success me-2">
+                                ✅ Pago: R$ <%= balances.paidBalance.toFixed(2) %>
+                            </span>
+                            <span class="badge bg-warning text-dark">
+                                ⏳ Pendente: R$ <%= balances.pendingBalance.toFixed(2) %>
+                            </span>
+                        </div>
+                    </div>
+                    <div class="text-end">
+                        <h5 class="mb-0 <%= balances.balance >= 0 ? 'text-success' : 'text-danger' %>">
+                            Saldo: R$ <%= balances.balance.toFixed(2) %>
+                        </h5>
+                        <small class="text-muted">
+                            <i class="bi bi-arrow-up-circle text-success"></i> 
+                            Receitas: R$ <%= balances.totalIncome.toFixed(2) %>
+                            <i class="bi bi-arrow-down-circle text-danger ms-2"></i> 
+                            Despesas: R$ <%= balances.totalExpense.toFixed(2) %>
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- ===== TABELA DE TRANSAÇÕES ===== -->

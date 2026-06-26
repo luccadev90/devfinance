@@ -4,8 +4,8 @@ const User = require('../models/User');
 // TELA DE LOGIN
 // ============================================
 exports.showLogin = (req, res) => {
-    // Se já estiver logado, redireciona para dashboard
     if (req.session && req.session.userId) {
+        console.log('👤 Usuário já logado, redirecionando para dashboard');
         return res.redirect('/');
     }
     
@@ -32,15 +32,17 @@ exports.showRegister = (req, res) => {
 };
 
 // ============================================
-// PROCESSAR LOGIN
+// PROCESSAR LOGIN - COM MAIS LOGS
 // ============================================
 exports.login = async (req, res) => {
     try {
         const { email, password } = req.body;
 
         console.log('📝 Tentativa de login:', email);
+        console.log('📦 Body recebido:', req.body);
 
         if (!email || !password) {
+            console.log('❌ Campos vazios');
             req.flash('error', 'Preencha todos os campos');
             return res.redirect('/login');
         }
@@ -53,6 +55,8 @@ exports.login = async (req, res) => {
             return res.redirect('/login');
         }
 
+        console.log('✅ Usuário encontrado:', user.name);
+
         // Verificar senha
         const isMatch = await user.comparePassword(password);
         if (!isMatch) {
@@ -61,15 +65,28 @@ exports.login = async (req, res) => {
             return res.redirect('/login');
         }
 
+        console.log('✅ Senha correta!');
+
         // Criar sessão
         req.session.userId = user._id;
         req.session.userName = user.name;
         req.session.userEmail = user.email;
 
-        console.log('✅ Login bem-sucedido:', user.name);
-
-        req.flash('success', `Bem-vindo(a) ${user.name}!`);
-        res.redirect('/');
+        // Salvar a sessão explicitamente
+        req.session.save((err) => {
+            if (err) {
+                console.error('❌ Erro ao salvar sessão:', err);
+                req.flash('error', 'Erro ao fazer login. Tente novamente.');
+                return res.redirect('/login');
+            }
+            
+            console.log('✅ Sessão salva com sucesso!');
+            console.log('🆔 userId:', req.session.userId);
+            console.log('👤 userName:', req.session.userName);
+            
+            req.flash('success', `Bem-vindo(a) ${user.name}!`);
+            res.redirect('/');
+        });
     } catch (error) {
         console.error('❌ Erro no login:', error);
         req.flash('error', 'Erro ao fazer login. Tente novamente.');
@@ -85,31 +102,33 @@ exports.register = async (req, res) => {
         const { name, email, password, confirmPassword } = req.body;
 
         console.log('📝 Tentativa de cadastro:', email);
+        console.log('📦 Body recebido:', req.body);
 
-        // Validações
         if (!name || !email || !password || !confirmPassword) {
+            console.log('❌ Campos vazios');
             req.flash('error', 'Preencha todos os campos');
             return res.redirect('/register');
         }
 
         if (password !== confirmPassword) {
+            console.log('❌ Senhas não coincidem');
             req.flash('error', 'As senhas não coincidem');
             return res.redirect('/register');
         }
 
         if (password.length < 6) {
+            console.log('❌ Senha muito curta');
             req.flash('error', 'A senha deve ter no mínimo 6 caracteres');
             return res.redirect('/register');
         }
 
-        // Verificar se email já existe
         const existingUser = await User.findOne({ email: email.toLowerCase() });
         if (existingUser) {
+            console.log('❌ Email já existe:', email);
             req.flash('error', 'Este email já está cadastrado');
             return res.redirect('/register');
         }
 
-        // Criar usuário
         const user = new User({
             name: name.trim(),
             email: email.toLowerCase(),
@@ -119,6 +138,7 @@ exports.register = async (req, res) => {
         await user.save();
 
         console.log('✅ Cadastro bem-sucedido:', user.name);
+        console.log('🆔 ID do usuário:', user._id);
 
         req.flash('success', 'Cadastro realizado com sucesso! Faça login.');
         res.redirect('/login');
@@ -146,10 +166,17 @@ exports.logout = (req, res) => {
 // MIDDLEWARE - VERIFICAR SE ESTÁ LOGADO
 // ============================================
 exports.isAuthenticated = (req, res, next) => {
+    console.log('🔍 Verificando autenticação...');
+    console.log('📦 Session:', req.session);
+    console.log('🆔 userId:', req.session?.userId);
+    
     if (!req.session || !req.session.userId) {
+        console.log('❌ Não autenticado - redirecionando para login');
         req.flash('error', 'Faça login para acessar esta página');
         return res.redirect('/login');
     }
+    
+    console.log('✅ Usuário autenticado:', req.session.userId);
     next();
 };
 

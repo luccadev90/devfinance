@@ -25,15 +25,20 @@ app.use(bodyParser.json());
 app.use(methodOverride('_method'));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// ===== SESSÃO =====
+// ===== CONFIGURAÇÃO DE SESSÃO PARA PRODUÇÃO =====
+const isProduction = process.env.NODE_ENV === 'production';
+
 app.use(session({
     secret: process.env.SESSION_SECRET || 'devfinance-super-secret-key-2024',
     resave: false,
     saveUninitialized: false,
     cookie: {
+        secure: isProduction, // Só usa HTTPS em produção
+        httpOnly: true,
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 dias
-        secure: process.env.NODE_ENV === 'production'
-    }
+        sameSite: 'lax'
+    },
+    name: 'devfinance.sid' // Nome do cookie
 }));
 
 // ===== FLASH MESSAGES =====
@@ -42,7 +47,8 @@ app.use(flash());
 // ===== MIDDLEWARE DE LOG (para debug) =====
 app.use((req, res, next) => {
     console.log(`🌐 ${req.method} ${req.url}`);
-    console.log('📦 Session:', req.session?.userId || 'Nenhuma');
+    console.log('📦 Session ID:', req.session?.id || 'Nenhum');
+    console.log('👤 Usuário logado:', req.session?.userId || 'Não');
     next();
 });
 
@@ -61,9 +67,11 @@ app.use((req, res, next) => {
             name: req.session.userName || 'Usuário',
             email: req.session.userEmail || ''
         };
+        console.log('✅ Usuário na sessão:', req.session.userName);
     } else {
         res.locals.isAuthenticated = false;
         res.locals.user = null;
+        console.log('❌ Nenhum usuário na sessão');
     }
     
     next();
@@ -93,5 +101,6 @@ app.use((err, req, res, next) => {
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);
     console.log(`📊 Acesse: http://localhost:${PORT}`);
+    console.log(`🔧 Ambiente: ${isProduction ? 'PRODUÇÃO' : 'DESENVOLVIMENTO'}`);
     console.log('🔑 Rotas públicas: /login, /register, /health');
 });

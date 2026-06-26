@@ -21,4 +21,7 @@ router.get('/api/export', financeController.exportData);
 // ===== ROTA DE TESTE =====
 router.get('/test-data', financeController.addTestData);
 
+// ===== ROTA DE EXPORTAÇÃO PDF =====
+router.get('/export/pdf', financeController.exportPDF);
+
 module.exports = router;

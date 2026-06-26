@@ -335,3 +335,176 @@ exports.addTestData = async (req, res) => {
         res.status(500).send('Erro ao adicionar dados de teste');
     }
 };
+
+// ============================================
+// EXPORTAR PARA PDF
+// ============================================
+
+const PDFDocument = require('pdfkit');
+
+exports.exportPDF = async (req, res) => {
+    try {
+        const finances = await Finance.find().sort({ createdAt: -1 });
+        const balances = calculateBalances(finances);
+        
+        // Criar documento PDF
+        const doc = new PDFDocument({
+            size: 'A4',
+            margin: 50
+        });
+
+        // Configurar resposta
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename=relatorio-financas-${new Date().toISOString().split('T')[0]}.pdf`);
+        
+        doc.pipe(res);
+
+        // ===== CABEÇALHO =====
+        doc
+            .fontSize(24)
+            .font('Helvetica-Bold')
+            .fillColor('#2c3e50')
+            .text('📊 Relatório de Finanças', { align: 'center' })
+            .moveDown();
+
+        // Data
+        doc
+            .fontSize(10)
+            .font('Helvetica')
+            .fillColor('#7f8c8d')
+            .text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, { align: 'center' })
+            .moveDown(1.5);
+
+        // ===== RESUMO =====
+        doc
+            .fontSize(14)
+            .font('Helvetica-Bold')
+            .fillColor('#2c3e50')
+            .text('📈 Resumo Financeiro', { underline: true })
+            .moveDown(0.5);
+
+        // Cards de resumo
+        const summaryData = [
+            { label: '💰 Total de Receitas', value: `R$ ${balances.totalIncome.toFixed(2)}`, color: '#27ae60' },
+            { label: '💸 Total de Despesas', value: `R$ ${balances.totalExpense.toFixed(2)}`, color: '#e74c3c' },
+            { label: '📊 Saldo Total', value: `R$ ${balances.balance.toFixed(2)}`, color: balances.balance >= 0 ? '#2980b9' : '#e74c3c' },
+            { label: '📋 Total de Transações', value: `${finances.length}`, color: '#8e44ad' }
+        ];
+
+        let yPos = doc.y;
+        summaryData.forEach((item, index) => {
+            const xPos = index === 0 ? 50 : (index === 1 ? 200 : (index === 2 ? 350 : 450));
+            
+            doc
+                .fontSize(10)
+                .font('Helvetica')
+                .fillColor('#34495e')
+                .text(item.label, xPos, yPos, { width: 140, align: 'center' });
+            
+            doc
+                .fontSize(12)
+                .font('Helvetica-Bold')
+                .fillColor(item.color)
+                .text(item.value, xPos, yPos + 15, { width: 140, align: 'center' });
+        });
+
+        doc.moveDown(3);
+
+        // ===== LISTA DE TRANSAÇÕES =====
+        doc
+            .fontSize(14)
+            .font('Helvetica-Bold')
+            .fillColor('#2c3e50')
+            .text('📋 Lista de Transações', { underline: true })
+            .moveDown(0.5);
+
+        // Cabeçalho da tabela
+        const tableTop = doc.y;
+        const colWidths = [30, 150, 60, 70, 70, 60];
+        const headers = ['#', 'Descrição', 'Tipo', 'Valor', 'Data', 'Status'];
+
+        // Fundo do cabeçalho
+        doc
+            .rect(50, tableTop - 5, 495, 25)
+            .fill('#3498db');
+
+        // Texto do cabeçalho
+        doc.fillColor('#ffffff');
+        headers.forEach((header, i) => {
+            const xPos = 50 + colWidths.slice(0, i).reduce((a, b) => a + b, 0);
+            doc
+                .fontSize(9)
+                .font('Helvetica-Bold')
+                .text(header, xPos, tableTop, { width: colWidths[i], align: 'center' });
+        });
+
+        // Dados da tabela
+        let rowY = tableTop + 25;
+        doc.fillColor('#2c3e50');
+
+        finances.forEach((finance, index) => {
+            // Verificar se precisa de nova página
+            if (rowY > 700) {
+                doc.addPage();
+                rowY = 50;
+                
+                // Reimprimir cabeçalho na nova página
+                doc.rect(50, rowY - 5, 495, 25).fill('#3498db');
+                doc.fillColor('#ffffff');
+                headers.forEach((header, i) => {
+                    const xPos = 50 + colWidths.slice(0, i).reduce((a, b) => a + b, 0);
+                    doc
+                        .fontSize(9)
+                        .font('Helvetica-Bold')
+                        .text(header, xPos, rowY, { width: colWidths[i], align: 'center' });
+                });
+                rowY += 25;
+                doc.fillColor('#2c3e50');
+            }
+
+            const rowData = [
+                (index + 1).toString(),
+                finance.description.length > 20 ? finance.description.substring(0, 20) + '...' : finance.description,
+                finance.type === 'income' ? '📈 Receita' : '📉 Despesa',
+                `R$ ${finance.amount.toFixed(2)}`,
+                new Date(finance.date).toLocaleDateString('pt-BR'),
+                finance.status === 'paid' ? '✅ Pago' : '⏳ Pendente'
+            ];
+
+            // Cor alternada para linhas
+            if (index % 2 === 0) {
+                doc.rect(50, rowY - 3, 495, 18).fill('#f8f9fa');
+            }
+
+            doc.fillColor('#2c3e50');
+            rowData.forEach((text, i) => {
+                const xPos = 50 + colWidths.slice(0, i).reduce((a, b) => a + b, 0);
+                doc
+                    .fontSize(8)
+                    .font('Helvetica')
+                    .text(text, xPos, rowY, { width: colWidths[i], align: 'center' });
+            });
+
+            rowY += 20;
+        });
+
+        // ===== RODAPÉ =====
+        doc
+            .addPage()
+            .fontSize(10)
+            .font('Helvetica')
+            .fillColor('#7f8c8d')
+            .text('Relatório gerado automaticamente pelo DevFinance', 50, 750, { align: 'center' })
+            .text(`Total de registros: ${finances.length}`, 50, 770, { align: 'center' });
+
+        // Finalizar PDF
+        doc.end();
+
+    } catch (error) {
+        console.error('❌ Erro ao gerar PDF:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao gerar PDF: ' + error.message
+        });
+    }
+};

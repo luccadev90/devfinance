@@ -67,7 +67,7 @@ exports.addCommonData = async (req, res, next) => {
 // CONTROLADORES - ROTAS PRINCIPAIS
 // ============================================
 
-// GET / - Listar finanças com filtro mensal (VERSÃO QUE FUNCIONA)
+// GET / - Listar finanças com filtro mensal e saldo acumulado
 exports.getFinances = async (req, res) => {
     try {
         const userId = req.session.userId;
@@ -93,14 +93,58 @@ exports.getFinances = async (req, res) => {
             isCurrentMonth = false;
         }
 
+        // ===== BUSCAR TODAS AS TRANSAÇÕES DO USUÁRIO =====
         const allTransactions = await Finance.find({ userId: userId })
-            .sort({ date: -1, createdAt: -1 })
+            .sort({ year: 1, month: 1, date: 1 })
             .lean();
 
+        console.log(`📊 Total de transações: ${allTransactions.length}`);
+
+        // ===== CALCULAR SALDO ACUMULADO ATÉ O MÊS SELECIONADO =====
+        let accumulatedIncome = 0;
+        let accumulatedExpense = 0;
+        let accumulatedBalance = 0;
+
+        // Pegar todas as transações até o mês selecionado
+        const transactionsUpToMonth = allTransactions.filter(t => 
+            t.year < selectedYear || (t.year === selectedYear && t.month <= selectedMonth)
+        );
+
+        // Calcular totais acumulados
+        transactionsUpToMonth.forEach(t => {
+            if (t.type === 'income') {
+                accumulatedIncome += t.amount;
+            } else {
+                accumulatedExpense += t.amount;
+            }
+        });
+
+        accumulatedBalance = accumulatedIncome - accumulatedExpense;
+
+        console.log(`💰 Saldo acumulado até ${selectedMonth}/${selectedYear}: R$ ${accumulatedBalance.toFixed(2)}`);
+
+        // ===== CALCULAR SALDO DE MESES ANTERIORES =====
+        const previousMonths = allTransactions.filter(t => 
+            t.year < selectedYear || (t.year === selectedYear && t.month < selectedMonth)
+        );
+
+        let previousIncome = 0;
+        let previousExpense = 0;
+        previousMonths.forEach(t => {
+            if (t.type === 'income') {
+                previousIncome += t.amount;
+            } else {
+                previousExpense += t.amount;
+            }
+        });
+        const previousBalance = previousIncome - previousExpense;
+
+        // ===== FILTRAR TRANSAÇÕES DO MÊS SELECIONADO =====
         let filteredByMonth = allTransactions.filter(t => 
             t.month === selectedMonth && t.year === selectedYear
         );
 
+        // ===== PENDÊNCIAS DE MESES ANTERIORES =====
         let pendingFromPrevious = [];
         if (isCurrentMonth) {
             pendingFromPrevious = allTransactions.filter(t => 
@@ -109,8 +153,10 @@ exports.getFinances = async (req, res) => {
             );
         }
 
+        // ===== COMBINAR RESULTADOS =====
         let finances = [...pendingFromPrevious, ...filteredByMonth];
 
+        // ===== APLICAR FILTROS ADICIONAIS =====
         if (statusFilter !== 'all') {
             finances = finances.filter(t => t.status === statusFilter);
         }
@@ -118,8 +164,10 @@ exports.getFinances = async (req, res) => {
             finances = finances.filter(t => t.type === typeFilter);
         }
 
+        // ===== CALCULAR BALANÇOS DO MÊS =====
         const balances = calculateBalances(finances);
 
+        // ===== MESES DISPONÍVEIS =====
         const monthMap = {};
         allTransactions.forEach(t => {
             if (t.month && t.year) {
@@ -141,6 +189,12 @@ exports.getFinances = async (req, res) => {
         const currentMonth = now.getMonth() + 1;
         const currentYear = now.getFullYear();
 
+        // ===== CALCULAR DÍVIDAS PENDENTES ACUMULADAS =====
+        const totalPending = allTransactions
+            .filter(t => t.status === 'pending' && (t.year < selectedYear || (t.year === selectedYear && t.month <= selectedMonth)))
+            .reduce((sum, t) => sum + t.amount, 0);
+
+        // ===== RENDERIZAR =====
         res.render('index', {
             title: 'DevFinance - Dashboard',
             finances: finances,
@@ -156,7 +210,13 @@ exports.getFinances = async (req, res) => {
             isCurrentMonth: isCurrentMonth,
             availableMonths: availableMonths,
             currentMonth: currentMonth,
-            currentYear: currentYear
+            currentYear: currentYear,
+            // ===== DADOS DE SALDO ACUMULADO =====
+            accumulatedBalance: accumulatedBalance,
+            accumulatedIncome: accumulatedIncome,
+            accumulatedExpense: accumulatedExpense,
+            previousBalance: previousBalance,
+            totalPending: totalPending
         });
 
     } catch (error) {

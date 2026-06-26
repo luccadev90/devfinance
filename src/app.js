@@ -1,3 +1,9 @@
+
+
+
+// Adicione no TOPO do arquivo, antes de tudo
+console.log('🚀 VERSÃO DEPLOY 2.0.1 - ' + new Date().toISOString());
+
 const express = require('express');
 const bodyParser = require('body-parser');
 const methodOverride = require('method-override');

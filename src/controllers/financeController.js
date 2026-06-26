@@ -73,53 +73,54 @@ exports.getFinances = async (req, res) => {
         const userId = req.session.userId;
         const statusFilter = req.query.status || 'all';
         const typeFilter = req.query.type || 'all';
-        const monthFilter = req.query.month || 'current';
-        const yearFilter = req.query.year || new Date().getFullYear();
-
-        console.log(`📅 Filtro: Mês=${monthFilter}, Ano=${yearFilter}`);
-
-        // Construir filtro base
-        const filter = { userId: userId };
-
-        // ===== FILTRO POR MÊS E ANO =====
-        let selectedMonth, selectedYear;
         
-        if (monthFilter === 'current') {
+        // ===== PEGAR MÊS E ANO DA URL =====
+        const monthParam = req.query.month;
+        const yearParam = req.query.year;
+        
+        console.log('📥 PARÂMETROS RECEBIDOS:', { monthParam, yearParam, statusFilter, typeFilter });
+
+        // ===== DETERMINAR MÊS E ANO A SEREM EXIBIDOS =====
+        let selectedMonth, selectedYear;
+        let isCurrentMonth = false;
+        
+        if (monthParam === 'current' || !monthParam) {
             // Mês atual
             const now = new Date();
             selectedMonth = now.getMonth() + 1;
             selectedYear = now.getFullYear();
-        } else if (monthFilter && !isNaN(monthFilter)) {
-            // Mês específico
-            selectedMonth = parseInt(monthFilter);
-            selectedYear = parseInt(yearFilter);
+            isCurrentMonth = true;
         } else {
-            // Fallback: mês atual
-            const now = new Date();
-            selectedMonth = now.getMonth() + 1;
-            selectedYear = now.getFullYear();
+            // Mês específico
+            selectedMonth = parseInt(monthParam);
+            selectedYear = parseInt(yearParam) || new Date().getFullYear();
+            isCurrentMonth = false;
         }
 
-        // Aplicar filtro de mês/ano
-        filter.month = selectedMonth;
-        filter.year = selectedYear;
+        console.log(`📅 Exibindo: ${selectedMonth}/${selectedYear} (${isCurrentMonth ? 'Mês Atual' : 'Histórico'})`);
 
-        // FILTROS ADICIONAIS
+        // ===== BUSCAR TRANSAÇÕES DO MÊS SELECIONADO =====
+        const filter = {
+            userId: userId,
+            month: selectedMonth,
+            year: selectedYear
+        };
+
         if (statusFilter !== 'all') filter.status = statusFilter;
         if (typeFilter !== 'all') filter.type = typeFilter;
 
         console.log('🔍 Filtro aplicado:', filter);
 
-        // ===== BUSCAR TRANSAÇÕES DO MÊS SELECIONADO =====
-        const finances = await Finance.find(filter)
+        // Buscar transações do mês selecionado
+        let finances = await Finance.find(filter)
             .sort({ date: -1, createdAt: -1 })
             .lean();
 
         console.log(`📊 Transações do mês ${selectedMonth}/${selectedYear}: ${finances.length}`);
 
-        // ===== BUSCAR PENDÊNCIAS DE MESES ANTERIORES (se for mês atual) =====
+        // ===== BUSCAR PENDÊNCIAS DE MESES ANTERIORES (SÓ NO MÊS ATUAL) =====
         let pendingFromPrevious = [];
-        if (monthFilter === 'current') {
+        if (isCurrentMonth) {
             pendingFromPrevious = await Finance.find({
                 userId: userId,
                 status: 'pending',
@@ -135,7 +136,6 @@ exports.getFinances = async (req, res) => {
         }
 
         // ===== COMBINAR RESULTADOS =====
-        // Primeiro as pendências anteriores, depois as do mês atual
         const allFinances = [...pendingFromPrevious, ...finances];
 
         // ===== CALCULAR TOTAIS =====
@@ -159,19 +159,29 @@ exports.getFinances = async (req, res) => {
         const currentMonth = now.getMonth() + 1;
         const currentYear = now.getFullYear();
 
+        // ===== RENDERIZAR =====
         res.render('index', {
             title: 'DevFinance - Dashboard',
             finances: allFinances,
             balances: balances,
             totalItems: totalItems,
             filteredItems: allFinances.length,
+            
+            // Filtros atuais
             statusFilter: statusFilter,
             typeFilter: typeFilter,
-            monthFilter: monthFilter,
-            yearFilter: yearFilter,
+            monthFilter: monthParam || 'current',
+            yearFilter: yearParam || currentYear,
+            
+            // Mês selecionado
             selectedMonth: selectedMonth,
             selectedYear: selectedYear,
+            isCurrentMonth: isCurrentMonth,
+            
+            // Lista de meses disponíveis
             availableMonths: availableMonths,
+            
+            // Mês atual para referência
             currentMonth: currentMonth,
             currentYear: currentYear
         });

@@ -66,6 +66,49 @@ router.get('/migrate', async (req, res) => {
     }
 });
 
+// Rota para testar dados
+router.get('/test-data', financeController.addTestData);
+router.get('/test-months', async (req, res) => {
+    try {
+        const userId = req.session.userId;
+        if (!userId) {
+            return res.redirect('/login');
+        }
+
+        // Buscar todos os meses disponíveis
+        const months = await Finance.aggregate([
+            { $match: { userId: userId } },
+            { $group: {
+                _id: { year: '$year', month: '$month' },
+                year: { $first: '$year' },
+                month: { $first: '$month' },
+                count: { $sum: 1 }
+            }},
+            { $sort: { '_id.year': -1, '_id.month': -1 } }
+        ]);
+
+        // Buscar todos os dados
+        const allData = await Finance.find({ userId: userId })
+            .sort({ year: -1, month: -1, date: -1 })
+            .lean();
+
+        res.json({
+            success: true,
+            totalRecords: allData.length,
+            availableMonths: months,
+            sampleData: allData.slice(0, 5).map(d => ({
+                description: d.description,
+                month: d.month,
+                year: d.year,
+                date: d.date,
+                status: d.status
+            }))
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Rota Sobre (pública)
 router.get('/sobre', (req, res) => {
     res.render('sobre', {

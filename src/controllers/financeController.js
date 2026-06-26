@@ -76,7 +76,13 @@ exports.getFinances = async (req, res) => {
         const monthParam = req.query.month || 'current';
         const yearParam = req.query.year || new Date().getFullYear();
 
-        console.log('📥 PARÂMETROS:', { monthParam, yearParam });
+        console.log('📥 PARÂMETROS RECEBIDOS:', { 
+            monthParam, 
+            yearParam, 
+            statusFilter, 
+            typeFilter,
+            userId 
+        });
 
         // ===== DETERMINAR MÊS E ANO =====
         let selectedMonth, selectedYear;
@@ -87,49 +93,48 @@ exports.getFinances = async (req, res) => {
             selectedMonth = now.getMonth() + 1;
             selectedYear = now.getFullYear();
             isCurrentMonth = true;
-        } else {
+        } else if (monthParam && !isNaN(monthParam)) {
             selectedMonth = parseInt(monthParam);
             selectedYear = parseInt(yearParam) || new Date().getFullYear();
             isCurrentMonth = false;
+        } else {
+            const now = new Date();
+            selectedMonth = now.getMonth() + 1;
+            selectedYear = now.getFullYear();
+            isCurrentMonth = true;
         }
 
-        console.log(`📅 Exibindo: ${selectedMonth}/${selectedYear}`);
+        console.log(`📅 Exibindo: ${selectedMonth}/${selectedYear} (${isCurrentMonth ? 'Atual' : 'Histórico'})`);
 
-        // ===== BUSCAR TRANSAÇÕES =====
-        const filter = { userId: userId };
-        
-        // Só aplicar filtro de mês se tiver dados
-        const hasData = await Finance.findOne({ userId: userId });
-        if (hasData) {
-            filter.month = selectedMonth;
-            filter.year = selectedYear;
-        }
+        // ===== BUSCAR TRANSAÇÕES DO MÊS SELECIONADO =====
+        const filter = { 
+            userId: userId,
+            month: selectedMonth,
+            year: selectedYear
+        };
 
         if (statusFilter !== 'all') filter.status = statusFilter;
         if (typeFilter !== 'all') filter.type = typeFilter;
 
-        console.log('🔍 Filtro:', filter);
+        console.log('🔍 FILTRO APLICADO:', JSON.stringify(filter, null, 2));
 
+        // Buscar transações
         let finances = await Finance.find(filter)
             .sort({ date: -1, createdAt: -1 })
             .lean();
 
-        // Se não encontrar nada, tentar sem filtro de mês
-        if (finances.length === 0 && hasData) {
-            console.log('⚠️ Nenhum dado para este mês, buscando todos...');
-            const fallbackFilter = { userId: userId };
-            if (statusFilter !== 'all') fallbackFilter.status = statusFilter;
-            if (typeFilter !== 'all') fallbackFilter.type = typeFilter;
-            finances = await Finance.find(fallbackFilter)
-                .sort({ date: -1, createdAt: -1 })
-                .lean();
+        console.log(`📊 Transações encontradas: ${finances.length}`);
+        if (finances.length > 0) {
+            console.log('📋 Primeira transação:', {
+                description: finances[0].description,
+                month: finances[0].month,
+                year: finances[0].year
+            });
         }
-
-        console.log(`📊 Encontrados: ${finances.length} registros`);
 
         // ===== BUSCAR PENDÊNCIAS DE MESES ANTERIORES =====
         let pendingFromPrevious = [];
-        if (isCurrentMonth && finances.length > 0) {
+        if (isCurrentMonth) {
             pendingFromPrevious = await Finance.find({
                 userId: userId,
                 status: 'pending',
@@ -137,14 +142,20 @@ exports.getFinances = async (req, res) => {
                     { year: { $lt: selectedYear } },
                     { year: selectedYear, month: { $lt: selectedMonth } }
                 ]
-            }).lean();
+            })
+            .sort({ year: -1, month: -1, createdAt: -1 })
+            .lean();
+            
+            console.log(`📊 Pendências anteriores: ${pendingFromPrevious.length}`);
         }
 
+        // ===== COMBINAR RESULTADOS =====
         const allFinances = [...pendingFromPrevious, ...finances];
+        console.log(`📊 Total a exibir: ${allFinances.length}`);
 
         // ===== CALCULAR TOTAIS =====
-        const balances = calculateBalances(allFinances);
         const totalItems = await Finance.countDocuments({ userId: userId });
+        const balances = calculateBalances(allFinances);
 
         // ===== LISTA DE MESES DISPONÍVEIS =====
         const availableMonths = await Finance.aggregate([
@@ -160,10 +171,12 @@ exports.getFinances = async (req, res) => {
 
         console.log('📅 Meses disponíveis:', availableMonths);
 
+        // ===== MÊS ATUAL =====
         const now = new Date();
         const currentMonth = now.getMonth() + 1;
         const currentYear = now.getFullYear();
 
+        // ===== RENDERIZAR =====
         res.render('index', {
             title: 'DevFinance - Dashboard',
             finances: allFinances,
@@ -179,8 +192,7 @@ exports.getFinances = async (req, res) => {
             isCurrentMonth: isCurrentMonth,
             availableMonths: availableMonths,
             currentMonth: currentMonth,
-            currentYear: currentYear,
-            hasData: hasData ? true : false
+            currentYear: currentYear
         });
     } catch (error) {
         console.error('❌ Erro ao buscar finanças:', error);

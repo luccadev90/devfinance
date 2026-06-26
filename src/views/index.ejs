@@ -117,36 +117,39 @@
         <div class="col-md-12">
             <h5 class="mb-2">
                 <i class="bi bi-funnel"></i> Filtrar Transações
+                <span class="badge bg-primary ms-2">
+                    <%= finances.length %> itens
+                </span>
             </h5>
         </div>
         <div class="col-md-12">
-            <form method="GET" action="/" class="row g-2">
+            <form method="GET" action="/" class="row g-2" id="filterForm">
                 <!-- Filtro de Mês -->
                 <div class="col-md-3">
-    <select name="month" class="form-select form-select-sm" onchange="this.form.submit()">
-        <option value="current" <%= monthFilter === 'current' ? 'selected' : '' %>>
-            📅 Mês Atual
-        </option>
-        <% if (availableMonths && availableMonths.length > 0) { %>
-            <% availableMonths.forEach(month => { %>
-                <option value="<%= month.month %>" 
-                        <%= monthFilter == month.month && yearFilter == month.year ? 'selected' : '' %>>
-                    📆 <%= String(month.month).padStart(2, '0') %>/<%= month.year %>
-                    (<%= month.count %> itens)
-                </option>
-            <% }) %>
-        <% } else { %>
-            <option value="" disabled>Nenhum dado encontrado</option>
-        <% } %>
-    </select>
-</div>
+                    <select name="month" class="form-select form-select-sm" onchange="document.getElementById('filterForm').submit()">
+                        <option value="current" <%= monthFilter === 'current' ? 'selected' : '' %>>
+                            📅 Mês Atual
+                        </option>
+                        <% if (availableMonths && availableMonths.length > 0) { %>
+                            <% availableMonths.forEach(month => { %>
+                                <option value="<%= month.month %>" 
+                                        <%= (monthFilter == month.month && yearFilter == month.year) ? 'selected' : '' %>>
+                                    📆 <%= String(month.month).padStart(2, '0') %>/<%= month.year %>
+                                    (<%= month.count %>)
+                                </option>
+                            <% }) %>
+                        <% } else { %>
+                            <option value="" disabled>Nenhum dado disponível</option>
+                        <% } %>
+                    </select>
+                </div>
 
                 <!-- Ano (campo oculto) -->
                 <input type="hidden" name="year" value="<%= yearFilter %>">
 
                 <!-- Filtro de Status -->
                 <div class="col-md-3">
-                    <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <select name="status" class="form-select form-select-sm" onchange="document.getElementById('filterForm').submit()">
                         <option value="all" <%= statusFilter === 'all' ? 'selected' : '' %>>Todos os Status</option>
                         <option value="pending" <%= statusFilter === 'pending' ? 'selected' : '' %>>⏳ Pendente</option>
                         <option value="paid" <%= statusFilter === 'paid' ? 'selected' : '' %>>✅ Pago</option>
@@ -155,7 +158,7 @@
 
                 <!-- Filtro de Tipo -->
                 <div class="col-md-3">
-                    <select name="type" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <select name="type" class="form-select form-select-sm" onchange="document.getElementById('filterForm').submit()">
                         <option value="all" <%= typeFilter === 'all' ? 'selected' : '' %>>Todos os Tipos</option>
                         <option value="income" <%= typeFilter === 'income' ? 'selected' : '' %>>⬆ Receita</option>
                         <option value="expense" <%= typeFilter === 'expense' ? 'selected' : '' %>>⬇ Despesa</option>
@@ -174,6 +177,31 @@
                 </div>
             </form>
         </div>
+    </div>
+
+    <!-- Informações do mês atual -->
+    <div class="mt-2">
+        <small class="text-muted">
+            <i class="bi bi-info-circle"></i>
+            <%
+                const monthNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+                                   'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+            %>
+            <strong>
+                <% if (isCurrentMonth) { %>
+                    📅 Mês Atual: <%= monthNames[selectedMonth - 1] %> de <%= selectedYear %>
+                <% } else { %>
+                    📆 Histórico: <%= monthNames[selectedMonth - 1] %> de <%= selectedYear %>
+                <% } %>
+            </strong>
+            | Mostrando <strong><%= finances.length %></strong> transações
+            <% 
+                const pendingCount = finances.filter(f => f.status === 'pending').length;
+                if (pendingCount > 0) { 
+            %>
+                | ⚠️ <strong class="text-warning"><%= pendingCount %></strong> pendentes
+            <% } %>
+        </small>
     </div>
 </div>
 

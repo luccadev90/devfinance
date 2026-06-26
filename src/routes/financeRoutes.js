@@ -44,6 +44,28 @@ router.get('/api/export', financeController.exportData);
 router.get('/export/pdf', financeController.exportPDF); // esta aqui
 router.get('/test-data', financeController.addTestData);
 
+// Rota para migrar dados (apenas desenvolvimento)
+router.get('/migrate', async (req, res) => {
+    try {
+        const finances = await Finance.find({});
+        let count = 0;
+        
+        for (const finance of finances) {
+            if (finance.month !== undefined && finance.year !== undefined) continue;
+            
+            const date = finance.date ? new Date(finance.date) : finance.createdAt;
+            finance.month = date.getMonth() + 1;
+            finance.year = date.getFullYear();
+            await finance.save();
+            count++;
+        }
+        
+        res.send(`✅ Migração concluída! ${count} registros atualizados.`);
+    } catch (error) {
+        res.status(500).send('❌ Erro na migração: ' + error.message);
+    }
+});
+
 // Rota Sobre (pública)
 router.get('/sobre', (req, res) => {
     res.render('sobre', {

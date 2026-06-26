@@ -123,21 +123,23 @@
             <form method="GET" action="/" class="row g-2">
                 <!-- Filtro de Mês -->
                 <div class="col-md-3">
-                    <select name="month" class="form-select form-select-sm" onchange="this.form.submit()">
-                        <option value="current" <%= monthFilter === 'current' ? 'selected' : '' %>>
-                            📅 Mês Atual
-                        </option>
-                        <% if (availableMonths && availableMonths.length > 0) { %>
-                            <% availableMonths.forEach(month => { %>
-                                <option value="<%= month.month %>" 
-                                        <%= monthFilter == month.month && yearFilter == month.year ? 'selected' : '' %>>
-                                    📆 <%= String(month.month).padStart(2, '0') %>/<%= month.year %>
-                                    (<%= month.count %> itens)
-                                </option>
-                            <% }) %>
-                        <% } %>
-                    </select>
-                </div>
+    <select name="month" class="form-select form-select-sm" onchange="this.form.submit()">
+        <option value="current" <%= monthFilter === 'current' ? 'selected' : '' %>>
+            📅 Mês Atual
+        </option>
+        <% if (availableMonths && availableMonths.length > 0) { %>
+            <% availableMonths.forEach(month => { %>
+                <option value="<%= month.month %>" 
+                        <%= monthFilter == month.month && yearFilter == month.year ? 'selected' : '' %>>
+                    📆 <%= String(month.month).padStart(2, '0') %>/<%= month.year %>
+                    (<%= month.count %> itens)
+                </option>
+            <% }) %>
+        <% } else { %>
+            <option value="" disabled>Nenhum dado encontrado</option>
+        <% } %>
+    </select>
+</div>
 
                 <!-- Ano (campo oculto) -->
                 <input type="hidden" name="year" value="<%= yearFilter %>">

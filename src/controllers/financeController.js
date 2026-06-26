@@ -73,54 +73,63 @@ exports.getFinances = async (req, res) => {
         const userId = req.session.userId;
         const statusFilter = req.query.status || 'all';
         const typeFilter = req.query.type || 'all';
-        
-        // ===== PEGAR MÊS E ANO DA URL =====
-        const monthParam = req.query.month;
-        const yearParam = req.query.year;
-        
-        console.log('📥 PARÂMETROS RECEBIDOS:', { monthParam, yearParam, statusFilter, typeFilter });
+        const monthParam = req.query.month || 'current';
+        const yearParam = req.query.year || new Date().getFullYear();
 
-        // ===== DETERMINAR MÊS E ANO A SEREM EXIBIDOS =====
+        console.log('📥 PARÂMETROS:', { monthParam, yearParam });
+
+        // ===== DETERMINAR MÊS E ANO =====
         let selectedMonth, selectedYear;
         let isCurrentMonth = false;
         
-        if (monthParam === 'current' || !monthParam) {
-            // Mês atual
+        if (monthParam === 'current') {
             const now = new Date();
             selectedMonth = now.getMonth() + 1;
             selectedYear = now.getFullYear();
             isCurrentMonth = true;
         } else {
-            // Mês específico
             selectedMonth = parseInt(monthParam);
             selectedYear = parseInt(yearParam) || new Date().getFullYear();
             isCurrentMonth = false;
         }
 
-        console.log(`📅 Exibindo: ${selectedMonth}/${selectedYear} (${isCurrentMonth ? 'Mês Atual' : 'Histórico'})`);
+        console.log(`📅 Exibindo: ${selectedMonth}/${selectedYear}`);
 
-        // ===== BUSCAR TRANSAÇÕES DO MÊS SELECIONADO =====
-        const filter = {
-            userId: userId,
-            month: selectedMonth,
-            year: selectedYear
-        };
+        // ===== BUSCAR TRANSAÇÕES =====
+        const filter = { userId: userId };
+        
+        // Só aplicar filtro de mês se tiver dados
+        const hasData = await Finance.findOne({ userId: userId });
+        if (hasData) {
+            filter.month = selectedMonth;
+            filter.year = selectedYear;
+        }
 
         if (statusFilter !== 'all') filter.status = statusFilter;
         if (typeFilter !== 'all') filter.type = typeFilter;
 
-        console.log('🔍 Filtro aplicado:', filter);
+        console.log('🔍 Filtro:', filter);
 
-        // Buscar transações do mês selecionado
         let finances = await Finance.find(filter)
             .sort({ date: -1, createdAt: -1 })
             .lean();
 
-        console.log(`📊 Transações do mês ${selectedMonth}/${selectedYear}: ${finances.length}`);
+        // Se não encontrar nada, tentar sem filtro de mês
+        if (finances.length === 0 && hasData) {
+            console.log('⚠️ Nenhum dado para este mês, buscando todos...');
+            const fallbackFilter = { userId: userId };
+            if (statusFilter !== 'all') fallbackFilter.status = statusFilter;
+            if (typeFilter !== 'all') fallbackFilter.type = typeFilter;
+            finances = await Finance.find(fallbackFilter)
+                .sort({ date: -1, createdAt: -1 })
+                .lean();
+        }
 
-        // ===== BUSCAR PENDÊNCIAS DE MESES ANTERIORES (SÓ NO MÊS ATUAL) =====
+        console.log(`📊 Encontrados: ${finances.length} registros`);
+
+        // ===== BUSCAR PENDÊNCIAS DE MESES ANTERIORES =====
         let pendingFromPrevious = [];
-        if (isCurrentMonth) {
+        if (isCurrentMonth && finances.length > 0) {
             pendingFromPrevious = await Finance.find({
                 userId: userId,
                 status: 'pending',
@@ -128,19 +137,14 @@ exports.getFinances = async (req, res) => {
                     { year: { $lt: selectedYear } },
                     { year: selectedYear, month: { $lt: selectedMonth } }
                 ]
-            })
-            .sort({ year: -1, month: -1, createdAt: -1 })
-            .lean();
-            
-            console.log(`📊 Pendências de meses anteriores: ${pendingFromPrevious.length}`);
+            }).lean();
         }
 
-        // ===== COMBINAR RESULTADOS =====
         const allFinances = [...pendingFromPrevious, ...finances];
 
         // ===== CALCULAR TOTAIS =====
-        const totalItems = await Finance.countDocuments({ userId: userId });
         const balances = calculateBalances(allFinances);
+        const totalItems = await Finance.countDocuments({ userId: userId });
 
         // ===== LISTA DE MESES DISPONÍVEIS =====
         const availableMonths = await Finance.aggregate([
@@ -154,36 +158,29 @@ exports.getFinances = async (req, res) => {
             { $sort: { '_id.year': -1, '_id.month': -1 } }
         ]);
 
-        // ===== MÊS ATUAL =====
+        console.log('📅 Meses disponíveis:', availableMonths);
+
         const now = new Date();
         const currentMonth = now.getMonth() + 1;
         const currentYear = now.getFullYear();
 
-        // ===== RENDERIZAR =====
         res.render('index', {
             title: 'DevFinance - Dashboard',
             finances: allFinances,
             balances: balances,
             totalItems: totalItems,
             filteredItems: allFinances.length,
-            
-            // Filtros atuais
             statusFilter: statusFilter,
             typeFilter: typeFilter,
-            monthFilter: monthParam || 'current',
-            yearFilter: yearParam || currentYear,
-            
-            // Mês selecionado
+            monthFilter: monthParam,
+            yearFilter: yearParam,
             selectedMonth: selectedMonth,
             selectedYear: selectedYear,
             isCurrentMonth: isCurrentMonth,
-            
-            // Lista de meses disponíveis
             availableMonths: availableMonths,
-            
-            // Mês atual para referência
             currentMonth: currentMonth,
-            currentYear: currentYear
+            currentYear: currentYear,
+            hasData: hasData ? true : false
         });
     } catch (error) {
         console.error('❌ Erro ao buscar finanças:', error);
@@ -206,25 +203,42 @@ exports.addFinance = async (req, res) => {
         const { description, amount, type, status, date } = req.body;
         const userId = req.session.userId;
 
-        const parsedDate = date ? new Date(date) : new Date();
-        const month = parsedDate.getMonth() + 1;
-        const year = parsedDate.getFullYear();
+        // Determinar data
+        let parsedDate;
+        let month, year;
+        
+        if (date) {
+            parsedDate = new Date(date);
+            // Verificar se a data é válida
+            if (isNaN(parsedDate.getTime())) {
+                parsedDate = new Date();
+            }
+        } else {
+            parsedDate = new Date();
+        }
+        
+        month = parsedDate.getMonth() + 1;
+        year = parsedDate.getFullYear();
+
+        console.log(`📝 Nova transação: ${description}, Data: ${parsedDate.toISOString().split('T')[0]}, Mês: ${month}/${year}`);
 
         const newFinance = new Finance({
             description: description.trim(),
             amount: parseFloat(amount),
             type: type || 'income',
             status: status || 'pending',
-            date: date || new Date().toISOString().split('T')[0],
+            date: date || parsedDate.toISOString().split('T')[0],
             month: month,
             year: year,
             userId: userId
         });
 
         await newFinance.save();
-        console.log(`✅ Adicionado: ${newFinance.description} (${newFinance.status}) - ${month}/${year}`);
+        console.log(`✅ Adicionado: ${newFinance.description} - ${month}/${year}`);
         
-        res.redirect('/');
+        // Redirecionar mantendo o filtro atual
+        const redirectUrl = req.query.redirect || '/';
+        res.redirect(redirectUrl);
     } catch (error) {
         console.error('❌ Erro ao adicionar finança:', error);
         res.status(400).render('add', {

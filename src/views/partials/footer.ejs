@@ -1,18 +1,50 @@
     </div> <!-- Fecha container -->
 
     <!-- ===== FOOTER ===== -->
-    <footer class="footer mt-5 py-3 bg-white shadow-sm">
+    <footer class="footer mt-5 py-4 bg-dark text-white">
         <div class="container">
-            <div class="row align-items-center">
+            <div class="row">
                 <div class="col-md-6">
-                    <span class="text-muted">
-                        <i class="bi bi-code-square"></i> DevFinance v1.0
-                    </span>
+                    <h5>
+                        <i class="bi bi-coin text-warning"></i> DevFinance
+                    </h5>
+                    <p class="text-muted small mb-0">
+                        Sistema de finanças pessoais desenvolvido com ❤️
+                    </p>
                 </div>
-                <div class="col-md-6 text-md-end">
-                    <span class="text-muted">
-                        <i class="bi bi-database"></i> Total: <strong><%= totalItems || 0 %></strong> transações
-                    </span>
+                <div class="col-md-3">
+                    <h6 class="text-warning">Desenvolvedor</h6>
+                    <p class="small mb-1">
+                        <i class="bi bi-person"></i> Lucca Andrade Lopes
+                    </p>
+                    <p class="small mb-1">
+                        <i class="bi bi-geo-alt"></i> Caraguatatuba - SP
+                    </p>
+                    <p class="small mb-0">
+                        <i class="bi bi-calendar"></i> 36 anos
+                    </p>
+                </div>
+                <div class="col-md-3">
+                    <h6 class="text-warning">Sobre</h6>
+                    <p class="small text-muted mb-1">
+                        <i class="bi bi-code-square"></i> 4 anos na área de TI
+                    </p>
+                    <p class="small text-muted mb-0">
+                        <i class="bi bi-rocket"></i> Primeiro projeto web
+                    </p>
+                    <div class="mt-2">
+                        <span class="badge bg-primary">Node.js</span>
+                        <span class="badge bg-success">MongoDB</span>
+                        <span class="badge bg-info">EJS</span>
+                    </div>
+                </div>
+            </div>
+            <hr class="border-secondary">
+            <div class="row">
+                <div class="col-12 text-center small text-muted">
+                    <i class="bi bi-c-circle"></i> 2024 - Lucca Andrade Lopes - Todos os direitos reservados
+                    <br>
+                    <span class="badge bg-secondary mt-1">Versão 2.0</span>
                 </div>
             </div>
         </div>
@@ -49,70 +81,61 @@
         }
 
         // ============================================
-        // ALTERNAR STATUS - VERSÃO DEFINITIVAMENTE CORRIGIDA
+        // ALTERNAR STATUS
         // ============================================
-       // ============================================
-// ALTERNAR STATUS - CORRIGIDO
-// ============================================
-function toggleStatus(id) {
-    console.log(`🔄 Alternando status do ID: ${id}`);
-    
-    // Encontrar todos os botões com este ID
-    const buttons = document.querySelectorAll(`button[onclick*="toggleStatus('${id}')"]`);
-    
-    // Desabilitar todos os botões
-    buttons.forEach(btn => {
-        btn.disabled = true;
-        btn.innerHTML = '⏳';
-    });
-
-    fetch(`/toggle/${id}`, { 
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        }
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-    })
-    .then(data => {
-        console.log('📦 Resposta:', data);
-        
-        if (data.success) {
-            showToast(`✅ Status alterado para ${data.status === 'paid' ? 'Pago' : 'Pendente'}!`, 'success');
-            // Recarregar a página após 1 segundo
-            setTimeout(() => {
-                window.location.reload();
-            }, 800);
-        } else {
-            showToast('❌ Erro ao alternar status', 'danger');
-            // Reativar botões
+        function toggleStatus(id) {
+            console.log(`🔄 Alternando status do ID: ${id}`);
+            
+            const buttons = document.querySelectorAll(`button[onclick*="toggleStatus('${id}')"]`);
             buttons.forEach(btn => {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="bi bi-arrow-repeat"></i>';
+                btn.disabled = true;
+                btn.innerHTML = '⏳';
+            });
+
+            fetch(`/toggle/${id}`, { 
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('📦 Resposta:', data);
+                
+                if (data.success) {
+                    showToast(`✅ Status alterado para ${data.status === 'paid' ? 'Pago' : 'Pendente'}!`, 'success');
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 800);
+                } else {
+                    showToast('❌ Erro ao alternar status', 'danger');
+                    buttons.forEach(btn => {
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="bi bi-arrow-repeat"></i>';
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('❌ Erro:', error);
+                showToast('❌ Erro ao alternar status', 'danger');
+                buttons.forEach(btn => {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="bi bi-arrow-repeat"></i>';
+                });
             });
         }
-    })
-    .catch(error => {
-        console.error('❌ Erro:', error);
-        showToast('❌ Erro ao alternar status', 'danger');
-        // Reativar botões
-        buttons.forEach(btn => {
-            btn.disabled = false;
-            btn.innerHTML = '<i class="bi bi-arrow-repeat"></i>';
-        });
-    });
-}
+
         // ============================================
-        // CONFIRMAR EXCLUSÃO - CORRIGIDO
+        // CONFIRMAR EXCLUSÃO
         // ============================================
         function confirmDelete(id) {
             if (confirm('⚠️ Tem certeza que deseja excluir esta transação?')) {
-                // Mostrar loading nos botões
-                const btns = document.querySelectorAll(`button[onclick*="confirmDelete(${id})"]`);
+                const btns = document.querySelectorAll(`button[onclick*="confirmDelete('${id}')"]`);
                 btns.forEach(btn => {
                     btn.textContent = '⏳';
                     btn.disabled = true;
@@ -130,7 +153,6 @@ function toggleStatus(id) {
         // TOAST DE NOTIFICAÇÃO
         // ============================================
         function showToast(message, type = 'info') {
-            // Remover toasts antigos
             const oldToasts = document.querySelectorAll('.toast-container-custom');
             oldToasts.forEach(t => t.remove());
             
@@ -174,7 +196,6 @@ function toggleStatus(id) {
             container.appendChild(toast);
             document.body.appendChild(container);
             
-            // Auto-fechar após 3 segundos
             setTimeout(() => {
                 if (container.parentElement) {
                     container.style.opacity = '0';
@@ -185,7 +206,7 @@ function toggleStatus(id) {
         }
 
         // ============================================
-        // ADICIONAR CSS PARA ANIMAÇÃO DO TOAST
+        // ADICIONAR CSS PARA ANIMAÇÃO
         // ============================================
         const style = document.createElement('style');
         style.textContent = `
@@ -206,34 +227,14 @@ function toggleStatus(id) {
         // INICIALIZAÇÃO
         // ============================================
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 DevFinance carregado com sucesso!');
+            console.log('🚀 DevFinance - Desenvolvido por Lucca Andrade Lopes');
+            console.log('📍 Caraguatatuba - SP | 36 anos');
+            console.log('💻 4 anos na área de TI');
+            console.log('🌟 Primeiro projeto web!');
             
-            // Contar transações na tabela
             const rows = document.querySelectorAll('tbody tr');
             const totalRows = rows.length;
             console.log(`📊 Total de transações: ${totalRows}`);
-            
-            // Verificar se tem dados
-            if (totalRows === 0) {
-                const tbody = document.querySelector('tbody');
-                if (tbody && !tbody.querySelector('td[colspan]')) {
-                    tbody.innerHTML = `
-                        <tr>
-                            <td colspan="7" class="text-center py-5 text-muted">
-                                <i class="bi bi-inbox display-4 d-block mb-3"></i>
-                                <h5>Nenhuma transação encontrada</h5>
-                                <p class="mb-3">Comece adicionando sua primeira transação</p>
-                                <a href="/add" class="btn btn-primary">
-                                    <i class="bi bi-plus-circle"></i> Adicionar
-                                </a>
-                                <a href="/test-data" class="btn btn-outline-secondary ms-2">
-                                    <i class="bi bi-database"></i> Dados de Teste
-                                </a>
-                            </td>
-                        </tr>
-                    `;
-                }
-            }
         });
 
         console.log('✅ Todos os scripts carregados!');

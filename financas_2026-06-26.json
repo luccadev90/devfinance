@@ -1,0 +1,161 @@
+{
+  "finances": [
+    {
+      "id": 1,
+      "description": "Salario Naor",
+      "amount": 3200,
+      "type": "income",
+      "status": "pending",
+      "date": "2026-07-06",
+      "createdAt": "2026-06-26T00:36:41.962Z"
+    },
+    {
+      "id": 2,
+      "description": "VR VA BENEFICIO NAOR",
+      "amount": 1000,
+      "type": "income",
+      "status": "pending",
+      "date": "2026-07-06",
+      "createdAt": "2026-06-26T00:37:23.897Z"
+    },
+    {
+      "id": 3,
+      "description": "Salario GB",
+      "amount": 889,
+      "type": "income",
+      "status": "pending",
+      "date": "2026-07-06",
+      "createdAt": "2026-06-26T00:38:13.217Z",
+      "updatedAt": "2026-06-26T00:39:54.271Z"
+    },
+    {
+      "id": 4,
+      "description": "Vale GB",
+      "amount": 528,
+      "type": "income",
+      "status": "pending",
+      "date": "2026-07-20",
+      "createdAt": "2026-06-26T00:39:34.619Z"
+    },
+    {
+      "id": 5,
+      "description": "LUZ",
+      "amount": 300,
+      "type": "expense",
+      "status": "pending",
+      "date": "2026-07-10",
+      "createdAt": "2026-06-26T00:41:41.757Z"
+    },
+    {
+      "id": 6,
+      "description": "AGUA",
+      "amount": 250,
+      "type": "expense",
+      "status": "pending",
+      "date": "2026-07-10",
+      "createdAt": "2026-06-26T00:42:03.677Z"
+    },
+    {
+      "id": 7,
+      "description": "INTERNET CASA,BIA",
+      "amount": 180,
+      "type": "expense",
+      "status": "pending",
+      "date": "2026-07-10",
+      "createdAt": "2026-06-26T00:42:40.073Z"
+    },
+    {
+      "id": 8,
+      "description": "IPTU",
+      "amount": 280,
+      "type": "expense",
+      "status": "pending",
+      "date": "2026-07-20",
+      "createdAt": "2026-06-26T00:43:04.927Z"
+    },
+    {
+      "id": 9,
+      "description": "MEI BIA",
+      "amount": 90,
+      "type": "expense",
+      "status": "pending",
+      "date": "2026-07-10",
+      "createdAt": "2026-06-26T00:43:39.567Z"
+    },
+    {
+      "id": 10,
+      "description": "CARRO LUCAS",
+      "amount": 510,
+      "type": "expense",
+      "status": "pending",
+      "date": "2026-07-10",
+      "createdAt": "2026-06-26T00:44:04.852Z"
+    },
+    {
+      "id": 11,
+      "description": "mercado",
+      "amount": 2000,
+      "type": "expense",
+      "status": "pending",
+      "date": "2026-07-06",
+      "createdAt": "2026-06-26T00:44:40.093Z"
+    },
+    {
+      "id": 12,
+      "description": "CARTAO ITAU LUCAS",
+      "amount": 333.4,
+      "type": "expense",
+      "status": "pending",
+      "date": "2026-07-10",
+      "createdAt": "2026-06-26T00:45:12.140Z"
+    },
+    {
+      "id": 13,
+      "description": "CARTAO NULBANK BIA",
+      "amount": 400,
+      "type": "expense",
+      "status": "pending",
+      "date": "2026-07-10",
+      "createdAt": "2026-06-26T00:45:53.199Z"
+    },
+    {
+      "id": 14,
+      "description": "BIA SALARIO EMBELEZE",
+      "amount": 1200,
+      "type": "income",
+      "status": "pending",
+      "date": "2026-07-06",
+      "createdAt": "2026-06-26T00:46:40.398Z"
+    },
+    {
+      "id": 15,
+      "description": "BICO BIA MARIANA",
+      "amount": 400,
+      "type": "income",
+      "status": "pending",
+      "date": "2026-07-06",
+      "createdAt": "2026-06-26T00:47:00.956Z"
+    },
+    {
+      "id": 16,
+      "description": "CASAMENTO BIA 01",
+      "amount": 500,
+      "type": "income",
+      "status": "pending",
+      "date": "2026-06-26",
+      "createdAt": "2026-06-26T00:47:28.738Z"
+    }
+  ],
+  "stats": {
+    "totalIncome": 7717,
+    "totalExpense": 4343.4,
+    "pendingIncome": 7717,
+    "pendingExpense": 4343.4,
+    "paidIncome": 0,
+    "paidExpense": 0,
+    "balance": 3373.6000000000004,
+    "pendingBalance": 3373.6000000000004,
+    "paidBalance": 0
+  },
+  "exportedAt": "2026-06-26T00:49:24.530Z"
+}

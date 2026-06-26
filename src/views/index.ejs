@@ -1,0 +1,234 @@
+<%- include('partials/header', { title: title }) %>
+
+<!-- ===== CARDS DE ESTATÍSTICAS ===== -->
+<div class="row mb-4 g-3">
+    <!-- Receitas -->
+    <div class="col-md-3 col-sm-6">
+        <div class="card card-stats card-income shadow-sm h-100">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2 text-muted">
+                    <i class="bi bi-arrow-up-circle text-success"></i> Receitas
+                </h6>
+                <h4 class="card-title text-success mb-2">R$ <%= balances.totalIncome.toFixed(2) %></h4>
+                <div class="d-flex justify-content-between small">
+                    <span class="text-muted">
+                        <i class="bi bi-check-circle text-success"></i> Pago: R$ <%= balances.paidIncome.toFixed(2) %>
+                    </span>
+                    <span class="text-muted">
+                        <i class="bi bi-clock text-warning"></i> Pendente: R$ <%= balances.pendingIncome.toFixed(2) %>
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Despesas -->
+    <div class="col-md-3 col-sm-6">
+        <div class="card card-stats card-expense shadow-sm h-100">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2 text-muted">
+                    <i class="bi bi-arrow-down-circle text-danger"></i> Despesas
+                </h6>
+                <h4 class="card-title text-danger mb-2">R$ <%= balances.totalExpense.toFixed(2) %></h4>
+                <div class="d-flex justify-content-between small">
+                    <span class="text-muted">
+                        <i class="bi bi-check-circle text-success"></i> Pago: R$ <%= balances.paidExpense.toFixed(2) %>
+                    </span>
+                    <span class="text-muted">
+                        <i class="bi bi-clock text-warning"></i> Pendente: R$ <%= balances.pendingExpense.toFixed(2) %>
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Saldo -->
+    <div class="col-md-3 col-sm-6">
+        <div class="card card-stats card-balance shadow-sm h-100">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2 text-muted">
+                    <i class="bi bi-wallet2"></i> Saldo Total
+                </h6>
+                <h4 class="card-title mb-2 <%= balances.balance >= 0 ? 'text-success' : 'text-danger' %>">
+                    R$ <%= balances.balance.toFixed(2) %>
+                </h4>
+                <div class="d-flex justify-content-between small">
+                    <span class="text-muted">
+                        <i class="bi bi-arrow-up-circle text-success"></i> Pago: R$ <%= balances.paidBalance.toFixed(2) %>
+                    </span>
+                    <span class="text-muted">
+                        <i class="bi bi-arrow-down-circle text-danger"></i> Pendente: R$ <%= balances.pendingBalance.toFixed(2) %>
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Transações -->
+    <div class="col-md-3 col-sm-6">
+        <div class="card card-stats card-paid shadow-sm h-100">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2 text-muted">
+                    <i class="bi bi-list-ul"></i> Transações
+                </h6>
+                <h4 class="card-title text-primary mb-2"><%= finances.length %></h4>
+                <div class="d-flex justify-content-between small">
+                    <span class="text-muted">
+                        <i class="bi bi-arrow-up text-success"></i> Receitas: <%= finances.filter(f => f.type === 'income').length %>
+                    </span>
+                    <span class="text-muted">
+                        <i class="bi bi-arrow-down text-danger"></i> Despesas: <%= finances.filter(f => f.type === 'expense').length %>
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== FILTROS ===== -->
+<div class="filter-section">
+    <div class="row align-items-center g-2">
+        <div class="col-md-4">
+            <h5 class="mb-0">
+                <i class="bi bi-funnel"></i> Filtrar Transações
+            </h5>
+        </div>
+        <div class="col-md-8">
+            <form method="GET" action="/" class="row g-2">
+                <div class="col-md-5">
+                    <select name="status" class="form-select form-select-sm">
+                        <option value="all" <%= statusFilter === 'all' ? 'selected' : '' %>>Todos os Status</option>
+                        <option value="pending" <%= statusFilter === 'pending' ? 'selected' : '' %>>⏳ Pendente</option>
+                        <option value="paid" <%= statusFilter === 'paid' ? 'selected' : '' %>>✅ Pago</option>
+                    </select>
+                </div>
+                <div class="col-md-5">
+                    <select name="type" class="form-select form-select-sm">
+                        <option value="all" <%= typeFilter === 'all' ? 'selected' : '' %>>Todos os Tipos</option>
+                        <option value="income" <%= typeFilter === 'income' ? 'selected' : '' %>>⬆ Receita</option>
+                        <option value="expense" <%= typeFilter === 'expense' ? 'selected' : '' %>>⬇ Despesa</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary btn-sm w-100">
+                        <i class="bi bi-search"></i> Filtrar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <% if (statusFilter !== 'all' || typeFilter !== 'all') { %>
+        <div class="mt-2">
+            <small class="text-muted">
+                <i class="bi bi-info-circle"></i> 
+                Mostrando <strong><%= finances.length %></strong> de <strong><%= totalItems %></strong> transações
+                <a href="/" class="text-decoration-none ms-2">
+                    <i class="bi bi-x-circle"></i> Limpar filtros
+                </a>
+            </small>
+        </div>
+    <% } %>
+</div>
+
+<!-- ===== TABELA DE TRANSAÇÕES ===== -->
+<div class="card shadow-sm">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+        <h5 class="mb-0">
+            <i class="bi bi-table"></i> Lista de Transações
+        </h5>
+        <div>
+            <a href="/add" class="btn btn-success btn-sm">
+                <i class="bi bi-plus-circle"></i> Nova Transação
+            </a>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover finance-table mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 50px;">#</th>
+                        <th>Descrição</th>
+                        <th style="width: 100px;">Tipo</th>
+                        <th style="width: 130px;">Valor</th>
+                        <th style="width: 110px;">Data</th>
+                        <th style="width: 120px;">Status</th>
+                        <th style="width: 140px; text-align: center;">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% if (finances.length === 0) { %>
+                        <tr>
+                            <td colspan="7" class="text-center py-5 text-muted">
+                                <i class="bi bi-inbox display-4 d-block mb-3"></i>
+                                <h5>Nenhuma transação encontrada</h5>
+                                <p class="mb-3">Comece adicionando sua primeira transação</p>
+                                <a href="/add" class="btn btn-primary">
+                                    <i class="bi bi-plus-circle"></i> Adicionar
+                                </a>
+                                <a href="/test-data" class="btn btn-outline-secondary ms-2">
+                                    <i class="bi bi-database"></i> Dados de Teste
+                                </a>
+                            </td>
+                        </tr>
+                    <% } else { %>
+                        <% finances.forEach((finance, index) => { %>
+                            <tr>
+                                <td><%= index + 1 %></td>
+                                <td>
+                                    <strong><%= finance.description %></strong>
+                                    <br>
+                                    <small class="text-muted">
+                                        <i class="bi bi-clock"></i> 
+                                        Criado: <%= new Date(finance.createdAt).toLocaleDateString('pt-BR') %>
+                                    </small>
+                                </td>
+                                <td>
+                                    <span class="badge <%= finance.type === 'income' ? 'bg-success' : 'bg-danger' %>">
+                                        <i class="bi <%= finance.type === 'income' ? 'bi-arrow-up' : 'bi-arrow-down' %>"></i>
+                                        <%= finance.type === 'income' ? 'Receita' : 'Despesa' %>
+                                    </span>
+                                </td>
+                                <td class="<%= finance.type === 'income' ? 'amount-income' : 'amount-expense' %>">
+                                    <%= finance.type === 'income' ? '+' : '-' %> 
+                                    R$ <%= finance.amount.toFixed(2) %>
+                                </td>
+                                <td>
+                                    <%= new Date(finance.date).toLocaleDateString('pt-BR') %>
+                                </td>
+                                <td>
+                                    <span class="status-badge <%= finance.status === 'paid' ? 'bg-success text-white' : 'bg-warning text-dark' %>">
+                                        <i class="bi <%= finance.status === 'paid' ? 'bi-check-circle' : 'bi-clock' %>"></i>
+                                        <%= finance.status === 'paid' ? 'Pago' : 'Pendente' %>
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="d-flex justify-content-center gap-1">
+                                        <!-- Alternar Status -->
+                                        <button class="btn btn-outline-info btn-icon" 
+                                                onclick="toggleStatus('<%= finance.id %>, this')"
+                                                title="Alternar status">
+                                            <i class="bi bi-arrow-repeat"></i>
+                                        </button>
+                                        <!-- Editar -->
+                                        <a href="/edit/<%= finance.id %>" class="btn btn-outline-primary btn-icon" title="Editar">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
+                                        <!-- Excluir -->
+                                        <button class="btn btn-outline-danger btn-icon" 
+                                                onclick="confirmDelete('<%= finance.id %>')"
+                                                title="Excluir">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        <% }) %>
+                    <% } %>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<%- include('partials/footer') %>

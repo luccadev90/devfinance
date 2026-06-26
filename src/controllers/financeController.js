@@ -370,17 +370,201 @@ const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const path = require('path');
 
-// GET /export/pdf - Exportar PDF do usuário
 exports.exportPDF = async (req, res) => {
     try {
-        const userId = req.session.userId;
-        const finances = await Finance.find({ userId: userId }).sort({ createdAt: -1 });
-        const balances = calculateBalances(finances);
+        console.log('📄 Iniciando geração de PDF...');
         
-        // ... resto do código PDF igual, mas com userId filtrado
-        // (mesmo código da versão anterior)
+        const userId = req.session.userId;
+        console.log('🆔 Usuário ID:', userId);
+        
+        const finances = await Finance.find({ userId: userId }).sort({ createdAt: -1 });
+        console.log('📊 Total de registros:', finances.length);
+        
+        if (finances.length === 0) {
+            console.log('⚠️ Nenhum dado para exportar');
+            req.flash('info', 'Não há dados para exportar em PDF');
+            return res.redirect('/');
+        }
+        
+        const balances = calculateBalances(finances);
+        console.log('📊 Balanços calculados');
+        
+        // Criar documento PDF
+        const doc = new PDFDocument({
+            size: 'A4',
+            margin: 50,
+            info: {
+                Title: 'Relatório de Finanças',
+                Author: 'DevFinance',
+                Subject: 'Relatório Financeiro'
+            }
+        });
+
+        // Configurar resposta
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename=relatorio-financas-${new Date().toISOString().split('T')[0]}.pdf`);
+        
+        doc.pipe(res);
+
+        console.log('📄 Configurando cabeçalho do PDF...');
+
+        // ===== CABEÇALHO =====
+        doc
+            .fontSize(22)
+            .font('Helvetica-Bold')
+            .fillColor('#2c3e50')
+            .text('RELATORIO DE FINANCAS', { align: 'center' })
+            .moveDown(0.5);
+
+        doc
+            .fontSize(10)
+            .font('Helvetica')
+            .fillColor('#7f8c8d')
+            .text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, { align: 'center' })
+            .moveDown(1.5);
+
+        // Linha separadora
+        doc
+            .moveTo(50, doc.y)
+            .lineTo(545, doc.y)
+            .stroke('#3498db')
+            .moveDown(1);
+
+        // ===== RESUMO =====
+        doc
+            .fontSize(14)
+            .font('Helvetica-Bold')
+            .fillColor('#2c3e50')
+            .text('RESUMO FINANCEIRO', { underline: true })
+            .moveDown(0.5);
+
+        const summaryData = [
+            { label: 'Total de Receitas', value: `R$ ${balances.totalIncome.toFixed(2)}`, color: '#27ae60' },
+            { label: 'Total de Despesas', value: `R$ ${balances.totalExpense.toFixed(2)}`, color: '#e74c3c' },
+            { label: 'Saldo Total', value: `R$ ${balances.balance.toFixed(2)}`, color: balances.balance >= 0 ? '#2980b9' : '#e74c3c' },
+            { label: 'Total de Transacoes', value: `${finances.length}`, color: '#8e44ad' }
+        ];
+
+        const col1X = 50;
+        const col2X = 300;
+        let yPos = doc.y;
+
+        summaryData.forEach((item, index) => {
+            const xPos = index < 2 ? col1X : col2X;
+            const yOffset = index < 2 ? index * 35 : (index - 2) * 35;
+            
+            doc
+                .fontSize(9)
+                .font('Helvetica')
+                .fillColor('#34495e')
+                .text(item.label, xPos, yPos + yOffset);
+            
+            doc
+                .fontSize(11)
+                .font('Helvetica-Bold')
+                .fillColor(item.color)
+                .text(item.value, xPos, yPos + yOffset + 14);
+        });
+
+        doc.moveDown(3);
+
+        // ===== LISTA DE TRANSAÇÕES =====
+        doc
+            .fontSize(14)
+            .font('Helvetica-Bold')
+            .fillColor('#2c3e50')
+            .text('LISTA DE TRANSACOES', { underline: true })
+            .moveDown(0.5);
+
+        const tableTop = doc.y;
+        const colWidths = [30, 150, 70, 70, 70, 70];
+        const headers = ['#', 'Descricao', 'Tipo', 'Valor', 'Data', 'Status'];
+
+        // Fundo do cabeçalho
+        doc
+            .rect(50, tableTop - 5, 495, 25)
+            .fill('#3498db');
+
+        // Texto do cabeçalho
+        doc.fillColor('#ffffff');
+        let currentX = 50;
+        headers.forEach((header, i) => {
+            doc
+                .fontSize(9)
+                .font('Helvetica-Bold')
+                .text(header, currentX, tableTop, { width: colWidths[i], align: 'center' });
+            currentX += colWidths[i];
+        });
+
+        // Dados da tabela
+        let rowY = tableTop + 25;
+        doc.fillColor('#2c3e50');
+
+        finances.forEach((finance, index) => {
+            // Verificar se precisa de nova página
+            if (rowY > 700) {
+                doc.addPage();
+                rowY = 50;
+                
+                // Reimprimir cabeçalho na nova página
+                doc.rect(50, rowY - 5, 495, 25).fill('#3498db');
+                doc.fillColor('#ffffff');
+                let currentX2 = 50;
+                headers.forEach((header, i) => {
+                    doc
+                        .fontSize(9)
+                        .font('Helvetica-Bold')
+                        .text(header, currentX2, rowY, { width: colWidths[i], align: 'center' });
+                    currentX2 += colWidths[i];
+                });
+                rowY += 25;
+                doc.fillColor('#2c3e50');
+            }
+
+            // Cor alternada para linhas
+            if (index % 2 === 0) {
+                doc.rect(50, rowY - 3, 495, 18).fill('#f8f9fa');
+            }
+
+            const rowData = [
+                (index + 1).toString(),
+                finance.description.length > 20 ? finance.description.substring(0, 20) + '...' : finance.description,
+                finance.type === 'income' ? 'Receita' : 'Despesa',
+                `R$ ${finance.amount.toFixed(2)}`,
+                new Date(finance.date).toLocaleDateString('pt-BR'),
+                finance.status === 'paid' ? 'Pago' : 'Pendente'
+            ];
+
+            doc.fillColor('#2c3e50');
+            let currentX3 = 50;
+            rowData.forEach((text, i) => {
+                doc
+                    .fontSize(8)
+                    .font('Helvetica')
+                    .text(text, currentX3, rowY, { 
+                        width: colWidths[i], 
+                        align: i === 0 ? 'center' : 'left' 
+                    });
+                currentX3 += colWidths[i];
+            });
+
+            rowY += 20;
+        });
+
+        // ===== RODAPÉ =====
+        doc
+            .fontSize(9)
+            .font('Helvetica')
+            .fillColor('#7f8c8d')
+            .text(`Total de registros: ${finances.length}`, 50, 780, { align: 'center' })
+            .text('Relatorio gerado automaticamente pelo DevFinance', 50, 795, { align: 'center' });
+
+        console.log('📄 Finalizando PDF...');
+        doc.end();
+
     } catch (error) {
-        console.error('Erro ao gerar PDF:', error);
+        console.error('❌ Erro ao gerar PDF:', error);
+        console.error('❌ Stack:', error.stack);
         res.status(500).json({
             success: false,
             error: 'Erro ao gerar PDF: ' + error.message

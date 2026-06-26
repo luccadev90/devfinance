@@ -41,7 +41,7 @@ router.delete('/delete/:id', financeController.deleteFinance);
 router.post('/toggle/:id', financeController.toggleStatus);
 router.get('/api/stats', financeController.getStats);
 router.get('/api/export', financeController.exportData);
-router.get('/export/pdf', financeController.exportPDF);
+router.get('/export/pdf', financeController.exportPDF); // esta aqui
 router.get('/test-data', financeController.addTestData);
 
 // Rota de fallback 404

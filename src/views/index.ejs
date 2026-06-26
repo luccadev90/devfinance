@@ -206,17 +206,17 @@
                                     <div class="d-flex justify-content-center gap-1">
                                         <!-- Alternar Status - CORRIGIDO: sem o 'this' -->
                                         <button class="btn btn-outline-info btn-icon" 
-                                                onclick="toggleStatus('<%= finance.id %>')"
+                                                onclick="toggleStatus('<%= finance._id %>')"
                                                 title="Alternar status">
                                             <i class="bi bi-arrow-repeat"></i>
                                         </button>
                                         <!-- Editar -->
-                                        <a href="/edit/<%= finance.id %>" class="btn btn-outline-primary btn-icon" title="Editar">
+                                        <a href="/edit/<%= finance._id %>" class="btn btn-outline-primary btn-icon" title="Editar">
                                             <i class="bi bi-pencil"></i>
                                         </a>
                                         <!-- Excluir -->
                                         <button class="btn btn-outline-danger btn-icon" 
-                                                onclick="confirmDelete('<%= finance.id %>')"
+                                                onclick="confirmDelete('<%= finance._id %>')"
                                                 title="Excluir">
                                             <i class="bi bi-trash"></i>
                                         </button>

@@ -5,6 +5,9 @@ const path = require('path');
 const session = require('express-session');
 const flash = require('connect-flash');
 require('dotenv').config();
+const MongoStore = require('connect-mongo');
+
+
 
 const connectDB = require('./config/database');
 const financeRoutes = require('./routes/financeRoutes');
@@ -25,20 +28,26 @@ app.use(bodyParser.json());
 app.use(methodOverride('_method'));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// ===== CONFIGURAÇÃO DE SESSÃO PARA PRODUÇÃO =====
+// ===== CONFIGURAÇÃO DE SESSÃO =====
+// Detecta se está em produção (Render) ou desenvolvimento
 const isProduction = process.env.NODE_ENV === 'production';
+const isRender = process.env.RENDER === 'true' || process.env.RENDER;
+
+console.log(`🔧 Ambiente: ${isProduction ? 'PRODUÇÃO' : 'DESENVOLVIMENTO'}`);
+console.log(`🔧 Render: ${isRender ? 'SIM' : 'NÃO'}`);
 
 app.use(session({
     secret: process.env.SESSION_SECRET || 'devfinance-super-secret-key-2024',
     resave: false,
     saveUninitialized: false,
     cookie: {
-        secure: isProduction, // Só usa HTTPS em produção
+        // IMPORTANTE: No Render, confiar no proxy
+        secure: false, // Mudar para false para funcionar no Render
         httpOnly: true,
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 dias
         sameSite: 'lax'
     },
-    name: 'devfinance.sid' // Nome do cookie
+    name: 'devfinance.sid'
 }));
 
 // ===== FLASH MESSAGES =====
@@ -49,6 +58,7 @@ app.use((req, res, next) => {
     console.log(`🌐 ${req.method} ${req.url}`);
     console.log('📦 Session ID:', req.session?.id || 'Nenhum');
     console.log('👤 Usuário logado:', req.session?.userId || 'Não');
+    console.log('🔒 Cookie secure:', req.session?.cookie?.secure);
     next();
 });
 

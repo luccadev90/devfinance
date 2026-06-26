@@ -32,14 +32,14 @@ exports.showRegister = (req, res) => {
 };
 
 // ============================================
-// PROCESSAR LOGIN - COM MAIS LOGS
+// PROCESSAR LOGIN
 // ============================================
 exports.login = async (req, res) => {
     try {
         const { email, password } = req.body;
 
         console.log('📝 Tentativa de login:', email);
-        console.log('📦 Body recebido:', req.body);
+        console.log('📦 Session antes do login:', req.session?.id);
 
         if (!email || !password) {
             console.log('❌ Campos vazios');
@@ -47,7 +47,6 @@ exports.login = async (req, res) => {
             return res.redirect('/login');
         }
 
-        // Buscar usuário
         const user = await User.findOne({ email: email.toLowerCase() });
         if (!user) {
             console.log('❌ Usuário não encontrado:', email);
@@ -57,7 +56,6 @@ exports.login = async (req, res) => {
 
         console.log('✅ Usuário encontrado:', user.name);
 
-        // Verificar senha
         const isMatch = await user.comparePassword(password);
         if (!isMatch) {
             console.log('❌ Senha incorreta para:', email);
@@ -72,7 +70,10 @@ exports.login = async (req, res) => {
         req.session.userName = user.name;
         req.session.userEmail = user.email;
 
-        // Salvar a sessão explicitamente
+        console.log('📦 Sessão criada:', req.session);
+        console.log('🆔 userId:', req.session.userId);
+
+        // Salvar explicitamente
         req.session.save((err) => {
             if (err) {
                 console.error('❌ Erro ao salvar sessão:', err);
@@ -81,11 +82,13 @@ exports.login = async (req, res) => {
             }
             
             console.log('✅ Sessão salva com sucesso!');
-            console.log('🆔 userId:', req.session.userId);
-            console.log('👤 userName:', req.session.userName);
+            console.log('📦 Session ID após salvar:', req.session.id);
             
+            // Redirecionar para dashboard
             req.flash('success', `Bem-vindo(a) ${user.name}!`);
-            res.redirect('/');
+            
+            // Redirecionar com força
+            return res.redirect('/');
         });
     } catch (error) {
         console.error('❌ Erro no login:', error);

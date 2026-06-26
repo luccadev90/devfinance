@@ -67,7 +67,7 @@ exports.addCommonData = async (req, res, next) => {
 // CONTROLADORES - ROTAS PRINCIPAIS
 // ============================================
 
-// GET / - Listar finanças com filtro mensal e saldo acumulado
+// GET / - Listar finanças com filtro mensal e saldo acumulado REAL
 exports.getFinances = async (req, res) => {
     try {
         const userId = req.session.userId;
@@ -76,8 +76,6 @@ exports.getFinances = async (req, res) => {
         const typeFilter = req.query.type || 'all';
         const monthFilter = req.query.month || 'current';
         const yearFilter = req.query.year || new Date().getFullYear();
-
-        console.log('📥 Filtros:', { monthFilter, yearFilter, statusFilter, typeFilter });
 
         let selectedMonth, selectedYear;
         let isCurrentMonth = false;
@@ -98,46 +96,70 @@ exports.getFinances = async (req, res) => {
             .sort({ year: 1, month: 1, date: 1 })
             .lean();
 
-        console.log(`📊 Total de transações: ${allTransactions.length}`);
-
-        // ===== CALCULAR SALDO ACUMULADO ATÉ O MÊS SELECIONADO =====
-        let accumulatedIncome = 0;
-        let accumulatedExpense = 0;
+        // ===== CALCULAR SALDO ACUMULADO REAL (MÊS A MÊS) =====
+        // Vamos calcular mês a mês para saber o saldo acumulado real
         let accumulatedBalance = 0;
+        let monthBalances = [];
 
-        // Pegar todas as transações até o mês selecionado
-        const transactionsUpToMonth = allTransactions.filter(t => 
-            t.year < selectedYear || (t.year === selectedYear && t.month <= selectedMonth)
-        );
-
-        // Calcular totais acumulados
-        transactionsUpToMonth.forEach(t => {
-            if (t.type === 'income') {
-                accumulatedIncome += t.amount;
-            } else {
-                accumulatedExpense += t.amount;
+        // Agrupar transações por mês
+        const monthGroups = {};
+        allTransactions.forEach(t => {
+            if (t.month && t.year) {
+                const key = `${t.year}-${t.month}`;
+                if (!monthGroups[key]) {
+                    monthGroups[key] = {
+                        year: t.year,
+                        month: t.month,
+                        income: 0,
+                        expense: 0,
+                        balance: 0,
+                        transactions: []
+                    };
+                }
+                if (t.type === 'income') {
+                    monthGroups[key].income += t.amount;
+                } else {
+                    monthGroups[key].expense += t.amount;
+                }
+                monthGroups[key].transactions.push(t);
             }
         });
 
-        accumulatedBalance = accumulatedIncome - accumulatedExpense;
+        // Calcular saldo de cada mês e acumular
+        const sortedMonths = Object.keys(monthGroups).sort();
+        let runningBalance = 0;
 
-        console.log(`💰 Saldo acumulado até ${selectedMonth}/${selectedYear}: R$ ${accumulatedBalance.toFixed(2)}`);
+        sortedMonths.forEach(key => {
+            const month = monthGroups[key];
+            month.balance = month.income - month.expense;
+            runningBalance += month.balance;
+            month.accumulatedBalance = runningBalance;
+            monthBalances.push(month);
+        });
 
-        // ===== CALCULAR SALDO DE MESES ANTERIORES =====
-        const previousMonths = allTransactions.filter(t => 
-            t.year < selectedYear || (t.year === selectedYear && t.month < selectedMonth)
+        // ===== SALDO ACUMULADO ATÉ O MÊS SELECIONADO =====
+        let accumulatedBalanceUpToMonth = 0;
+        let accumulatedIncomeUpToMonth = 0;
+        let accumulatedExpenseUpToMonth = 0;
+
+        // Filtrar meses até o selecionado
+        const monthsUpToSelected = monthBalances.filter(m => 
+            m.year < selectedYear || (m.year === selectedYear && m.month <= selectedMonth)
         );
 
-        let previousIncome = 0;
-        let previousExpense = 0;
-        previousMonths.forEach(t => {
-            if (t.type === 'income') {
-                previousIncome += t.amount;
-            } else {
-                previousExpense += t.amount;
-            }
+        monthsUpToSelected.forEach(m => {
+            accumulatedIncomeUpToMonth += m.income;
+            accumulatedExpenseUpToMonth += m.expense;
+            accumulatedBalanceUpToMonth += m.balance;
         });
-        const previousBalance = previousIncome - previousExpense;
+
+        // ===== SALDO DO MÊS ANTERIOR =====
+        const previousMonthData = monthBalances.filter(m => 
+            m.year < selectedYear || (m.year === selectedYear && m.month < selectedMonth)
+        );
+        const previousMonth = previousMonthData[previousMonthData.length - 1];
+        const previousMonthBalance = previousMonth ? previousMonth.balance : 0;
+        const previousMonthAccumulated = previousMonth ? previousMonth.accumulatedBalance : 0;
 
         // ===== FILTRAR TRANSAÇÕES DO MÊS SELECIONADO =====
         let filteredByMonth = allTransactions.filter(t => 
@@ -153,10 +175,10 @@ exports.getFinances = async (req, res) => {
             );
         }
 
-        // ===== COMBINAR RESULTADOS =====
+        // ===== COMBINAR =====
         let finances = [...pendingFromPrevious, ...filteredByMonth];
 
-        // ===== APLICAR FILTROS ADICIONAIS =====
+        // ===== APLICAR FILTROS =====
         if (statusFilter !== 'all') {
             finances = finances.filter(t => t.status === statusFilter);
         }
@@ -168,31 +190,34 @@ exports.getFinances = async (req, res) => {
         const balances = calculateBalances(finances);
 
         // ===== MESES DISPONÍVEIS =====
-        const monthMap = {};
-        allTransactions.forEach(t => {
-            if (t.month && t.year) {
-                const key = `${t.year}-${t.month}`;
-                if (!monthMap[key]) {
-                    monthMap[key] = { year: t.year, month: t.month, count: 0 };
-                }
-                monthMap[key].count++;
-            }
+        const availableMonths = monthBalances.map(m => ({
+            year: m.year,
+            month: m.month,
+            count: m.transactions.length,
+            balance: m.balance,
+            accumulated: m.accumulatedBalance
+        })).sort((a, b) => {
+            if (a.year !== b.year) return b.year - a.year;
+            return b.month - a.month;
         });
-
-        const availableMonths = Object.values(monthMap)
-            .sort((a, b) => {
-                if (a.year !== b.year) return b.year - a.year;
-                return b.month - a.month;
-            });
 
         const now = new Date();
         const currentMonth = now.getMonth() + 1;
         const currentYear = now.getFullYear();
 
-        // ===== CALCULAR DÍVIDAS PENDENTES ACUMULADAS =====
+        // ===== TOTAL DE PENDÊNCIAS =====
         const totalPending = allTransactions
             .filter(t => t.status === 'pending' && (t.year < selectedYear || (t.year === selectedYear && t.month <= selectedMonth)))
             .reduce((sum, t) => sum + t.amount, 0);
+
+        // ===== DADOS DO MÊS ATUAL =====
+        const currentMonthData = monthBalances.find(m => 
+            m.year === selectedYear && m.month === selectedMonth
+        );
+
+        const currentMonthIncome = currentMonthData ? currentMonthData.income : 0;
+        const currentMonthExpense = currentMonthData ? currentMonthData.expense : 0;
+        const currentMonthBalance = currentMonthData ? currentMonthData.balance : 0;
 
         // ===== RENDERIZAR =====
         res.render('index', {
@@ -211,18 +236,28 @@ exports.getFinances = async (req, res) => {
             availableMonths: availableMonths,
             currentMonth: currentMonth,
             currentYear: currentYear,
-            // ===== DADOS DE SALDO ACUMULADO =====
-            accumulatedBalance: accumulatedBalance,
-            accumulatedIncome: accumulatedIncome,
-            accumulatedExpense: accumulatedExpense,
-            previousBalance: previousBalance,
-            totalPending: totalPending
+            
+            // ===== DADOS DE SALDO ACUMULADO REAL =====
+            accumulatedBalance: accumulatedBalanceUpToMonth,
+            accumulatedIncome: accumulatedIncomeUpToMonth,
+            accumulatedExpense: accumulatedExpenseUpToMonth,
+            previousMonthBalance: previousMonthBalance,
+            previousMonthAccumulated: previousMonthAccumulated,
+            totalPending: totalPending,
+            
+            // ===== DADOS DO MÊS ATUAL =====
+            currentMonthIncome: currentMonthIncome,
+            currentMonthExpense: currentMonthExpense,
+            currentMonthBalance: currentMonthBalance,
+            
+            // ===== TODOS OS MESES COM SALDO =====
+            monthBalances: monthBalances
         });
 
     } catch (error) {
         console.error('❌ Erro:', error);
         res.status(500).send(`
-            <h1>❌ Erro</h1>
+            <h1>❌ Erro ao carregar dados</h1>
             <p>${error.message}</p>
             <pre>${error.stack}</pre>
             <a href="/">Voltar</a>

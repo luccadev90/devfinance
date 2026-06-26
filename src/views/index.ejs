@@ -8,8 +8,10 @@
                 <div class="d-flex justify-content-between align-items-center flex-wrap">
                     <div>
                         <h6 class="card-subtitle mb-2 text-muted">
-                            <i class="bi bi-piggy-bank"></i> Saldo Acumulado (Cofrinho)
-                            <span class="badge bg-warning text-dark ms-2">Até <%= String(selectedMonth).padStart(2, '0') %>/<%= selectedYear %></span>
+                            <i class="bi bi-piggy-bank"></i> Cofrinho - Saldo Acumulado
+                            <span class="badge bg-warning text-dark ms-2">
+                                Até <%= String(selectedMonth).padStart(2, '0') %>/<%= selectedYear %>
+                            </span>
                         </h6>
                         <h3 class="mb-0 <%= accumulatedBalance >= 0 ? 'text-success' : 'text-danger' %>">
                             R$ <%= accumulatedBalance.toFixed(2) %>
@@ -29,13 +31,24 @@
                     <div class="text-end">
                         <small class="text-muted d-block">
                             <i class="bi bi-arrow-left"></i> Saldo mês anterior: 
-                            <strong class="<%= previousBalance >= 0 ? 'text-success' : 'text-danger' %>">
-                                R$ <%= previousBalance.toFixed(2) %>
+                            <strong class="<%= previousMonthBalance >= 0 ? 'text-success' : 'text-danger' %>">
+                                R$ <%= previousMonthBalance.toFixed(2) %>
+                            </strong>
+                        </small>
+                        <small class="text-muted d-block">
+                            <i class="bi bi-arrow-right"></i> Acumulado anterior: 
+                            <strong class="<%= previousMonthAccumulated >= 0 ? 'text-success' : 'text-danger' %>">
+                                R$ <%= previousMonthAccumulated.toFixed(2) %>
                             </strong>
                         </small>
                         <% if (isCurrentMonth) { %>
                             <small class="text-muted">
-                                <i class="bi bi-info-circle"></i> Saldo acumulado inclui todos os meses anteriores
+                                <i class="bi bi-info-circle"></i> 
+                                <% if (accumulatedBalance >= 0) { %>
+                                    ✅ Saldo positivo: dinheiro disponível
+                                <% } else { %>
+                                    ⚠️ Saldo negativo: dívida acumulada
+                                <% } %>
                             </small>
                         <% } %>
                     </div>
@@ -45,9 +58,43 @@
     </div>
 </div>
 
+<!-- ===== RESUMO DO MÊS ATUAL ===== -->
+<div class="row mb-4 g-3">
+    <div class="col-md-4">
+        <div class="card bg-success text-white shadow-sm h-100">
+            <div class="card-body text-center">
+                <h6><i class="bi bi-arrow-up"></i> Receitas do Mês</h6>
+                <h3>R$ <%= currentMonthIncome.toFixed(2) %></h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-danger text-white shadow-sm h-100">
+            <div class="card-body text-center">
+                <h6><i class="bi bi-arrow-down"></i> Despesas do Mês</h6>
+                <h3>R$ <%= currentMonthExpense.toFixed(2) %></h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card <%= currentMonthBalance >= 0 ? 'bg-primary' : 'bg-warning text-dark' %> text-white shadow-sm h-100">
+            <div class="card-body text-center">
+                <h6><i class="bi bi-wallet2"></i> Saldo do Mês</h6>
+                <h3>R$ <%= currentMonthBalance.toFixed(2) %></h3>
+                <small>
+                    <% if (currentMonthBalance >= 0) { %>
+                        ✅ Sobrou dinheiro este mês
+                    <% } else { %>
+                        ⚠️ Faltou dinheiro este mês
+                    <% } %>
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- ===== CARDS DE ESTATÍSTICAS ===== -->
 <div class="row mb-4 g-3">
-    <!-- Card do Mês -->
     <div class="col-12">
         <div class="card card-stats card-balance shadow-sm" style="border-left-color: #6f42c1;">
             <div class="card-body">
@@ -96,7 +143,6 @@
         </div>
     </div>
 
-    <!-- Cards individuais -->
     <div class="col-md-3 col-sm-6">
         <div class="card card-stats card-income shadow-sm h-100">
             <div class="card-body">
@@ -194,7 +240,8 @@
                             <% availableMonths.forEach(function(m) { %>
                                 <option value="<%= m.month %>" 
                                         <%= (monthFilter == m.month && yearFilter == m.year) ? 'selected' : '' %>>
-                                    📆 <%= String(m.month).padStart(2, '0') %>/<%= m.year %> (<%= m.count %> itens)
+                                    📆 <%= String(m.month).padStart(2, '0') %>/<%= m.year %> 
+                                    (<%= m.count %> itens | Saldo: R$ <%= m.balance.toFixed(2) %>)
                                 </option>
                             <% }); %>
                         <% } %>
@@ -244,7 +291,7 @@
     </div>
 </div>
 
-<!-- ===== TABELA ===== -->
+<!-- ===== TABELA DE TRANSAÇÕES ===== -->
 <div class="card shadow-sm">
     <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
         <h5 class="mb-0"><i class="bi bi-table"></i> Lista de Transações</h5>
@@ -277,8 +324,12 @@
                             <td colspan="7" class="text-center py-5 text-muted">
                                 <i class="bi bi-inbox display-4 d-block mb-3"></i>
                                 <h5>Nenhuma transação encontrada</h5>
+                                <p class="mb-3">Nenhuma transação para <strong><%= nomeMes %> de <%= selectedYear %></strong></p>
                                 <a href="/add" class="btn btn-primary">
                                     <i class="bi bi-plus-circle"></i> Adicionar
+                                </a>
+                                <a href="/test-data" class="btn btn-outline-secondary ms-2">
+                                    <i class="bi bi-database"></i> Dados de Teste
                                 </a>
                             </td>
                         </tr>
@@ -334,6 +385,92 @@
                         <% }); %>
                     <% } %>
                 </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ===== HISTÓRICO MENSAL ===== -->
+<div class="card shadow-sm mt-4">
+    <div class="card-header bg-light">
+        <h6 class="mb-0">
+            <i class="bi bi-clock-history"></i> Histórico Mensal - Saldo Acumulado
+            <span class="badge bg-secondary ms-2">Mês a mês</span>
+        </h6>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-sm table-striped mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Mês/Ano</th>
+                        <th class="text-end">Receitas</th>
+                        <th class="text-end">Despesas</th>
+                        <th class="text-end">Saldo do Mês</th>
+                        <th class="text-end">Acumulado</th>
+                        <th class="text-center">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% if (monthBalances && monthBalances.length > 0) { %>
+                        <% monthBalances.sort((a, b) => b.year - a.year || b.month - a.month).forEach(function(m) { %>
+                            <tr>
+                                <td>
+                                    <strong><%= String(m.month).padStart(2, '0') %>/<%= m.year %></strong>
+                                    <span class="badge bg-secondary ms-1"><%= m.transactions.length %> itens</span>
+                                </td>
+                                <td class="text-end text-success">R$ <%= m.income.toFixed(2) %></td>
+                                <td class="text-end text-danger">R$ <%= m.expense.toFixed(2) %></td>
+                                <td class="text-end <%= m.balance >= 0 ? 'text-success' : 'text-danger' %>">
+                                    <strong>R$ <%= m.balance.toFixed(2) %></strong>
+                                </td>
+                                <td class="text-end <%= m.accumulatedBalance >= 0 ? 'text-success' : 'text-danger' %>">
+                                    <strong>R$ <%= m.accumulatedBalance.toFixed(2) %></strong>
+                                </td>
+                                <td class="text-center">
+                                    <% if (m.balance >= 0) { %>
+                                        <span class="badge bg-success">✅ Sobrou</span>
+                                    <% } else { %>
+                                        <span class="badge bg-danger">⚠️ Faltou</span>
+                                    <% } %>
+                                    <br>
+                                    <small class="text-muted">
+                                        <%= m.transactions.length > 0 ? m.transactions.length + ' transações' : 'vazio' %>
+                                    </small>
+                                </td>
+                            </tr>
+                        <% }); %>
+                    <% } else { %>
+                        <tr>
+                            <td colspan="6" class="text-center py-4 text-muted">
+                                <i class="bi bi-inbox d-block mb-2"></i>
+                                Nenhum dado disponível para o histórico mensal
+                            </td>
+                        </tr>
+                    <% } %>
+                </tbody>
+                <% if (monthBalances && monthBalances.length > 0) { %>
+                    <tfoot class="table-light">
+                        <tr>
+                            <td><strong>TOTAL</strong></td>
+                            <td class="text-end text-success">
+                                <strong>R$ <%= monthBalances.reduce((sum, m) => sum + m.income, 0).toFixed(2) %></strong>
+                            </td>
+                            <td class="text-end text-danger">
+                                <strong>R$ <%= monthBalances.reduce((sum, m) => sum + m.expense, 0).toFixed(2) %></strong>
+                            </td>
+                            <td class="text-end <%= monthBalances.reduce((sum, m) => sum + m.balance, 0) >= 0 ? 'text-success' : 'text-danger' %>">
+                                <strong>R$ <%= monthBalances.reduce((sum, m) => sum + m.balance, 0).toFixed(2) %></strong>
+                            </td>
+                            <td class="text-end <%= monthBalances.length > 0 && monthBalances[monthBalances.length - 1].accumulatedBalance >= 0 ? 'text-success' : 'text-danger' %>">
+                                <strong>
+                                    R$ <%= monthBalances.length > 0 ? monthBalances[monthBalances.length - 1].accumulatedBalance.toFixed(2) : '0.00' %>
+                                </strong>
+                            </td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                <% } %>
             </table>
         </div>
     </div>

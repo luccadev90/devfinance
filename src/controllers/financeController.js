@@ -76,13 +76,7 @@ exports.getFinances = async (req, res) => {
         const monthParam = req.query.month || 'current';
         const yearParam = req.query.year || new Date().getFullYear();
 
-        console.log('📥 PARÂMETROS RECEBIDOS:', { 
-            monthParam, 
-            yearParam, 
-            statusFilter, 
-            typeFilter,
-            userId 
-        });
+        console.log('📥 PARÂMETROS:', { monthParam, yearParam });
 
         // ===== DETERMINAR MÊS E ANO =====
         let selectedMonth, selectedYear;
@@ -104,7 +98,7 @@ exports.getFinances = async (req, res) => {
             isCurrentMonth = true;
         }
 
-        console.log(`📅 Exibindo: ${selectedMonth}/${selectedYear} (${isCurrentMonth ? 'Atual' : 'Histórico'})`);
+        console.log(`📅 Exibindo: ${selectedMonth}/${selectedYear}`);
 
         // ===== BUSCAR TRANSAÇÕES DO MÊS SELECIONADO =====
         const filter = { 
@@ -116,21 +110,11 @@ exports.getFinances = async (req, res) => {
         if (statusFilter !== 'all') filter.status = statusFilter;
         if (typeFilter !== 'all') filter.type = typeFilter;
 
-        console.log('🔍 FILTRO APLICADO:', JSON.stringify(filter, null, 2));
-
-        // Buscar transações
         let finances = await Finance.find(filter)
             .sort({ date: -1, createdAt: -1 })
             .lean();
 
-        console.log(`📊 Transações encontradas: ${finances.length}`);
-        if (finances.length > 0) {
-            console.log('📋 Primeira transação:', {
-                description: finances[0].description,
-                month: finances[0].month,
-                year: finances[0].year
-            });
-        }
+        console.log(`📊 Transações do mês: ${finances.length}`);
 
         // ===== BUSCAR PENDÊNCIAS DE MESES ANTERIORES =====
         let pendingFromPrevious = [];
@@ -151,7 +135,6 @@ exports.getFinances = async (req, res) => {
 
         // ===== COMBINAR RESULTADOS =====
         const allFinances = [...pendingFromPrevious, ...finances];
-        console.log(`📊 Total a exibir: ${allFinances.length}`);
 
         // ===== CALCULAR TOTAIS =====
         const totalItems = await Finance.countDocuments({ userId: userId });
@@ -171,12 +154,11 @@ exports.getFinances = async (req, res) => {
 
         console.log('📅 Meses disponíveis:', availableMonths);
 
-        // ===== MÊS ATUAL =====
         const now = new Date();
         const currentMonth = now.getMonth() + 1;
         const currentYear = now.getFullYear();
 
-        // ===== RENDERIZAR =====
+        // ===== RENDERIZAR COM TODAS AS VARIÁVEIS =====
         res.render('index', {
             title: 'DevFinance - Dashboard',
             finances: allFinances,
@@ -190,16 +172,20 @@ exports.getFinances = async (req, res) => {
             selectedMonth: selectedMonth,
             selectedYear: selectedYear,
             isCurrentMonth: isCurrentMonth,
-            availableMonths: availableMonths,
+            availableMonths: availableMonths || [], // GARANTIR QUE É UM ARRAY
             currentMonth: currentMonth,
             currentYear: currentYear
         });
     } catch (error) {
         console.error('❌ Erro ao buscar finanças:', error);
-        res.status(500).render('error', {
-            title: 'Erro',
-            message: 'Erro ao carregar os dados. Tente novamente.'
-        });
+        // Mostrar erro detalhado para debug
+        res.status(500).send(`
+            <h1>❌ Erro ao carregar dados</h1>
+            <p><strong>Mensagem:</strong> ${error.message}</p>
+            <p><strong>Stack:</strong></p>
+            <pre>${error.stack}</pre>
+            <a href="/">Voltar ao Dashboard</a>
+        `);
     }
 };
 // GET /add - Mostrar formulário de adição

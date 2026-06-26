@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const financeController = require('../controllers/financeController');
 const authController = require('../controllers/authController');
+const Finance = require('../models/Finance'); // Importar o modelo
 
 // ============================================
 // ROTAS PÚBLICAS (NÃO PRECISAM DE LOGIN)
@@ -17,13 +18,12 @@ router.get('/health', (req, res) => {
     res.json({ 
         status: 'OK', 
         message: 'Servidor rodando!',
-        session: req.session?.userId || 'Nenhuma sessão',
         timestamp: new Date().toISOString()
     });
 });
 
 // ============================================
-// ROTAS PROTEGIDAS
+// ROTAS PROTEGIDAS (PRECISAM DE LOGIN)
 // ============================================
 router.use(authController.isAuthenticated);
 router.use(authController.addUserToLocals);
@@ -41,84 +41,73 @@ router.delete('/delete/:id', financeController.deleteFinance);
 router.post('/toggle/:id', financeController.toggleStatus);
 router.get('/api/stats', financeController.getStats);
 router.get('/api/export', financeController.exportData);
-router.get('/export/pdf', financeController.exportPDF); // esta aqui
+router.get('/export/pdf', financeController.exportPDF);
 router.get('/test-data', financeController.addTestData);
 
-// Rota para migrar dados (apenas desenvolvimento)
-router.get('/migrate', async (req, res) => {
-    try {
-        const finances = await Finance.find({});
-        let count = 0;
-        
-        for (const finance of finances) {
-            if (finance.month !== undefined && finance.year !== undefined) continue;
-            
-            const date = finance.date ? new Date(finance.date) : finance.createdAt;
-            finance.month = date.getMonth() + 1;
-            finance.year = date.getFullYear();
-            await finance.save();
-            count++;
-        }
-        
-        res.send(`✅ Migração concluída! ${count} registros atualizados.`);
-    } catch (error) {
-        res.status(500).send('❌ Erro na migração: ' + error.message);
-    }
-});
-
-// Rota para testar dados
-router.get('/test-data', financeController.addTestData);
+// ============================================
+// ROTA DE TESTE - VERIFICAR MESES DISPONÍVEIS
+// ============================================
 router.get('/test-months', async (req, res) => {
     try {
         const userId = req.session.userId;
         if (!userId) {
-            return res.redirect('/login');
+            return res.status(401).json({ error: 'Faça login primeiro' });
         }
 
-        // Buscar todos os meses disponíveis
-        const months = await Finance.aggregate([
-            { $match: { userId: userId } },
-            { $group: {
-                _id: { year: '$year', month: '$month' },
-                year: { $first: '$year' },
-                month: { $first: '$month' },
-                count: { $sum: 1 }
-            }},
-            { $sort: { '_id.year': -1, '_id.month': -1 } }
-        ]);
+        console.log('🔍 Testando meses para usuário:', userId);
 
-        // Buscar todos os dados
+        // Buscar todos os registros do usuário
         const allData = await Finance.find({ userId: userId })
-            .sort({ year: -1, month: -1, date: -1 })
+            .select('description month year date status')
+            .sort({ year: -1, month: -1 })
             .lean();
+
+        console.log(`📊 Total de registros: ${allData.length}`);
+
+        // Extrair meses únicos
+        const monthMap = new Map();
+        allData.forEach(item => {
+            if (item.month && item.year) {
+                const key = `${item.year}-${item.month}`;
+                if (!monthMap.has(key)) {
+                    monthMap.set(key, {
+                        year: item.year,
+                        month: item.month,
+                        count: 0,
+                        items: []
+                    });
+                }
+                monthMap.get(key).count++;
+                monthMap.get(key).items.push({
+                    description: item.description,
+                    date: item.date,
+                    status: item.status
+                });
+            }
+        });
+
+        // Converter para array
+        const availableMonths = Array.from(monthMap.values())
+            .sort((a, b) => {
+                if (a.year !== b.year) return b.year - a.year;
+                return b.month - a.month;
+            });
 
         res.json({
             success: true,
             totalRecords: allData.length,
-            availableMonths: months,
-            sampleData: allData.slice(0, 5).map(d => ({
-                description: d.description,
-                month: d.month,
-                year: d.year,
-                date: d.date,
-                status: d.status
-            }))
+            recordsWithMonth: allData.filter(d => d.month && d.year).length,
+            availableMonths: availableMonths,
+            sampleData: allData.slice(0, 5)
         });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('❌ Erro no test-months:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message,
+            stack: error.stack
+        });
     }
-});
-
-// Rota Sobre (pública)
-router.get('/sobre', (req, res) => {
-    res.render('sobre', {
-        title: 'Sobre - DevFinance',
-        isAuthenticated: req.session && req.session.userId ? true : false,
-        user: req.session ? {
-            name: req.session.userName,
-            email: req.session.userEmail
-        } : null
-    });
 });
 
 // Rota de fallback 404

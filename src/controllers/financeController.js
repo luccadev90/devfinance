@@ -67,90 +67,88 @@ exports.addCommonData = async (req, res, next) => {
 // CONTROLADORES - ROTAS PRINCIPAIS
 // ============================================
 
-// GET / - Listar finanças com filtro mensal
+// GET / - Listar finanças com filtro mensal (VERSÃO SUPER SIMPLES)
 exports.getFinances = async (req, res) => {
     try {
         const userId = req.session.userId;
+        
+        // Pegar filtros da URL
         const statusFilter = req.query.status || 'all';
         const typeFilter = req.query.type || 'all';
-        const monthParam = req.query.month || 'current';
-        const yearParam = req.query.year || new Date().getFullYear();
+        const monthFilter = req.query.month || 'current';
+        const yearFilter = req.query.year || new Date().getFullYear();
 
-        console.log('📥 PARÂMETROS:', { monthParam, yearParam });
+        console.log('📥 Filtros:', { monthFilter, yearFilter, statusFilter, typeFilter });
 
-        // ===== DETERMINAR MÊS E ANO =====
+        // Determinar mês e ano
         let selectedMonth, selectedYear;
         let isCurrentMonth = false;
         
-        if (monthParam === 'current') {
+        if (monthFilter === 'current') {
             const now = new Date();
             selectedMonth = now.getMonth() + 1;
             selectedYear = now.getFullYear();
             isCurrentMonth = true;
-        } else if (monthParam && !isNaN(monthParam)) {
-            selectedMonth = parseInt(monthParam);
-            selectedYear = parseInt(yearParam) || new Date().getFullYear();
-            isCurrentMonth = false;
         } else {
-            const now = new Date();
-            selectedMonth = now.getMonth() + 1;
-            selectedYear = now.getFullYear();
-            isCurrentMonth = true;
+            selectedMonth = parseInt(monthFilter);
+            selectedYear = parseInt(yearFilter);
+            isCurrentMonth = false;
         }
 
-        console.log(`📅 Exibindo: ${selectedMonth}/${selectedYear}`);
-
-        // ===== BUSCAR TRANSAÇÕES DO MÊS SELECIONADO =====
-        const filter = { 
-            userId: userId,
-            month: selectedMonth,
-            year: selectedYear
-        };
-
-        if (statusFilter !== 'all') filter.status = statusFilter;
-        if (typeFilter !== 'all') filter.type = typeFilter;
-
-        let finances = await Finance.find(filter)
+        // BUSCAR TODAS AS TRANSAÇÕES DO USUÁRIO
+        const allTransactions = await Finance.find({ userId: userId })
             .sort({ date: -1, createdAt: -1 })
             .lean();
 
-        console.log(`📊 Transações do mês: ${finances.length}`);
+        console.log(`📊 Total de transações: ${allTransactions.length}`);
 
-        // ===== BUSCAR PENDÊNCIAS DE MESES ANTERIORES =====
+        // FILTRAR POR MÊS/ANO
+        let filteredByMonth = allTransactions.filter(t => 
+            t.month === selectedMonth && t.year === selectedYear
+        );
+
+        // Se for mês atual, incluir pendências de meses anteriores
         let pendingFromPrevious = [];
         if (isCurrentMonth) {
-            pendingFromPrevious = await Finance.find({
-                userId: userId,
-                status: 'pending',
-                $or: [
-                    { year: { $lt: selectedYear } },
-                    { year: selectedYear, month: { $lt: selectedMonth } }
-                ]
-            })
-            .sort({ year: -1, month: -1, createdAt: -1 })
-            .lean();
-            
-            console.log(`📊 Pendências anteriores: ${pendingFromPrevious.length}`);
+            pendingFromPrevious = allTransactions.filter(t => 
+                t.status === 'pending' && 
+                (t.year < selectedYear || (t.year === selectedYear && t.month < selectedMonth))
+            );
         }
 
-        // ===== COMBINAR RESULTADOS =====
-        const allFinances = [...pendingFromPrevious, ...finances];
+        // Combinar resultados
+        let finances = [...pendingFromPrevious, ...filteredByMonth];
 
-        // ===== CALCULAR TOTAIS =====
-        const totalItems = await Finance.countDocuments({ userId: userId });
-        const balances = calculateBalances(allFinances);
+        // Aplicar filtros adicionais
+        if (statusFilter !== 'all') {
+            finances = finances.filter(t => t.status === statusFilter);
+        }
+        if (typeFilter !== 'all') {
+            finances = finances.filter(t => t.type === typeFilter);
+        }
 
-        // ===== LISTA DE MESES DISPONÍVEIS =====
-        const availableMonths = await Finance.aggregate([
-            { $match: { userId: userId } },
-            { $group: {
-                _id: { year: '$year', month: '$month' },
-                year: { $first: '$year' },
-                month: { $first: '$month' },
-                count: { $sum: 1 }
-            }},
-            { $sort: { '_id.year': -1, '_id.month': -1 } }
-        ]);
+        console.log(`📊 Resultado final: ${finances.length} transações`);
+
+        // Calcular balanços
+        const balances = calculateBalances(finances);
+
+        // Lista de meses disponíveis (usando os dados que já temos)
+        const monthMap = {};
+        allTransactions.forEach(t => {
+            if (t.month && t.year) {
+                const key = `${t.year}-${t.month}`;
+                if (!monthMap[key]) {
+                    monthMap[key] = { year: t.year, month: t.month, count: 0 };
+                }
+                monthMap[key].count++;
+            }
+        });
+
+        const availableMonths = Object.values(monthMap)
+            .sort((a, b) => {
+                if (a.year !== b.year) return b.year - a.year;
+                return b.month - a.month;
+            });
 
         console.log('📅 Meses disponíveis:', availableMonths);
 
@@ -158,33 +156,32 @@ exports.getFinances = async (req, res) => {
         const currentMonth = now.getMonth() + 1;
         const currentYear = now.getFullYear();
 
-        // ===== RENDERIZAR COM TODAS AS VARIÁVEIS =====
+        // RENDERIZAR
         res.render('index', {
             title: 'DevFinance - Dashboard',
-            finances: allFinances,
+            finances: finances,
             balances: balances,
-            totalItems: totalItems,
-            filteredItems: allFinances.length,
+            totalItems: allTransactions.length,
+            filteredItems: finances.length,
             statusFilter: statusFilter,
             typeFilter: typeFilter,
-            monthFilter: monthParam,
-            yearFilter: yearParam,
+            monthFilter: monthFilter,
+            yearFilter: yearFilter,
             selectedMonth: selectedMonth,
             selectedYear: selectedYear,
             isCurrentMonth: isCurrentMonth,
-            availableMonths: availableMonths || [], // GARANTIR QUE É UM ARRAY
+            availableMonths: availableMonths,
             currentMonth: currentMonth,
             currentYear: currentYear
         });
+
     } catch (error) {
-        console.error('❌ Erro ao buscar finanças:', error);
-        // Mostrar erro detalhado para debug
+        console.error('❌ Erro:', error);
         res.status(500).send(`
-            <h1>❌ Erro ao carregar dados</h1>
-            <p><strong>Mensagem:</strong> ${error.message}</p>
-            <p><strong>Stack:</strong></p>
+            <h1>❌ Erro</h1>
+            <p>${error.message}</p>
             <pre>${error.stack}</pre>
-            <a href="/">Voltar ao Dashboard</a>
+            <a href="/">Voltar</a>
         `);
     }
 };

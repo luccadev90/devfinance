@@ -225,13 +225,21 @@ exports.deleteFinance = async (req, res) => {
 // ============================================
 
 // POST /toggle/:id - Alternar status
+// POST /toggle/:id - Alternar status
 exports.toggleStatus = async (req, res) => {
     try {
         const id = req.params.id;
+        console.log(`🔄 Recebendo toggle para ID: ${id}`); // Debug
+        
+        // Buscar a finança pelo ID
         const finance = await Finance.findById(id);
 
         if (!finance) {
-            return res.status(404).json({ error: 'Finança não encontrada' });
+            console.log(`❌ Finança ID ${id} não encontrada`);
+            return res.status(404).json({ 
+                success: false, 
+                error: 'Finança não encontrada' 
+            });
         }
 
         // Alternar status
@@ -241,7 +249,7 @@ exports.toggleStatus = async (req, res) => {
         
         await finance.save();
 
-        console.log(`🔄 Status alternado: ${finance.description} -> ${finance.status}`);
+        console.log(`✅ Status alternado: ${finance.description} -> ${finance.status}`);
 
         res.json({
             success: true,
@@ -249,14 +257,13 @@ exports.toggleStatus = async (req, res) => {
             message: `Status alterado para ${finance.status === 'paid' ? 'Pago' : 'Pendente'}`
         });
     } catch (error) {
-        console.error('Erro ao alternar status:', error);
+        console.error('❌ Erro ao alternar status:', error);
         res.status(500).json({
             success: false,
-            error: 'Erro ao alternar status'
+            error: 'Erro ao alternar status: ' + error.message
         });
     }
 };
-
 // GET /api/stats - Obter estatísticas
 exports.getStats = async (req, res) => {
     try {

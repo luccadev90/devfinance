@@ -1,21 +1,24 @@
 {
   "name": "devfinance",
   "version": "1.0.0",
-  "description": "Aplicativo financeiro com Node.js, EJS e Bootstrap",
+  "description": "Sistema de Finanças Pessoais",
   "main": "src/app.js",
   "scripts": {
     "start": "node src/app.js",
     "dev": "nodemon src/app.js"
   },
   "dependencies": {
-    "body-parser": "^1.20.2",
-    "dotenv": "^17.4.2",
-    "ejs": "^3.1.9",
     "express": "^4.18.2",
+    "ejs": "^3.1.9",
+    "body-parser": "^1.20.2",
     "method-override": "^3.0.0",
-    "mongoose": "^9.7.2"
+    "mongoose": "^6.13.0",
+    "dotenv": "^16.3.1"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=14.0.0"
   }
 }

@@ -204,9 +204,9 @@
                                 </td>
                                 <td>
                                     <div class="d-flex justify-content-center gap-1">
-                                        <!-- Alternar Status -->
+                                        <!-- Alternar Status - CORRIGIDO: sem o 'this' -->
                                         <button class="btn btn-outline-info btn-icon" 
-                                                onclick="toggleStatus('<%= finance.id %>, this')"
+                                                onclick="toggleStatus('<%= finance.id %>')"
                                                 title="Alternar status">
                                             <i class="bi bi-arrow-repeat"></i>
                                         </button>

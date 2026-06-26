@@ -51,59 +51,61 @@
         // ============================================
         // ALTERNAR STATUS - VERSÃO DEFINITIVAMENTE CORRIGIDA
         // ============================================
-        function toggleStatus(id) {
-            console.log(`🔄 Alternando status do ID: ${id}`);
-            
-            // Encontrar todos os botões com este ID
-            const buttons = document.querySelectorAll(`button[onclick*="toggleStatus(${id})"]`);
-            
-            // Desabilitar todos os botões
-            buttons.forEach(btn => {
-                btn.disabled = true;
-                btn.textContent = '⏳';
-            });
+       // ============================================
+// ALTERNAR STATUS - CORRIGIDO
+// ============================================
+function toggleStatus(id) {
+    console.log(`🔄 Alternando status do ID: ${id}`);
+    
+    // Encontrar todos os botões com este ID
+    const buttons = document.querySelectorAll(`button[onclick*="toggleStatus('${id}')"]`);
+    
+    // Desabilitar todos os botões
+    buttons.forEach(btn => {
+        btn.disabled = true;
+        btn.innerHTML = '⏳';
+    });
 
-            fetch(`/toggle/${id}`, { 
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                console.log('📦 Resposta:', data);
-                
-                if (data.success) {
-                    showToast(`✅ Status alterado para ${data.status === 'paid' ? 'Pago' : 'Pendente'}!`, 'success');
-                    // Recarregar a página após 1 segundo
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 800);
-                } else {
-                    showToast('❌ Erro ao alternar status', 'danger');
-                    // Reativar botões
-                    buttons.forEach(btn => {
-                        btn.disabled = false;
-                        btn.innerHTML = '<i class="bi bi-arrow-repeat"></i>';
-                    });
-                }
-            })
-            .catch(error => {
-                console.error('❌ Erro:', error);
-                showToast('❌ Erro ao alternar status', 'danger');
-                // Reativar botões
-                buttons.forEach(btn => {
-                    btn.disabled = false;
-                    btn.innerHTML = '<i class="bi bi-arrow-repeat"></i>';
-                });
+    fetch(`/toggle/${id}`, { 
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('📦 Resposta:', data);
+        
+        if (data.success) {
+            showToast(`✅ Status alterado para ${data.status === 'paid' ? 'Pago' : 'Pendente'}!`, 'success');
+            // Recarregar a página após 1 segundo
+            setTimeout(() => {
+                window.location.reload();
+            }, 800);
+        } else {
+            showToast('❌ Erro ao alternar status', 'danger');
+            // Reativar botões
+            buttons.forEach(btn => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-arrow-repeat"></i>';
             });
         }
-
+    })
+    .catch(error => {
+        console.error('❌ Erro:', error);
+        showToast('❌ Erro ao alternar status', 'danger');
+        // Reativar botões
+        buttons.forEach(btn => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-arrow-repeat"></i>';
+        });
+    });
+}
         // ============================================
         // CONFIRMAR EXCLUSÃO - CORRIGIDO
         // ============================================

@@ -8,7 +8,7 @@ const connectDB = require('./config/database');
 const financeRoutes = require('./routes/financeRoutes');
 
 const app = express();
-const PORT = process.env.PORT || 3030;
+const PORT = process.env.PORT || 3000;
 
 // ===== CONECTAR AO MONGODB =====
 connectDB();
@@ -23,7 +23,16 @@ app.use(bodyParser.json());
 app.use(methodOverride('_method'));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// ===== ROTAS =====
+// ===== ROTA DE TESTE (para ver se o servidor está rodando) =====
+app.get('/health', (req, res) => {
+    res.json({ 
+        status: 'OK', 
+        message: 'Servidor rodando!',
+        timestamp: new Date().toISOString()
+    });
+});
+
+// ===== ROTAS PRINCIPAIS =====
 app.use('/', financeRoutes);
 
 // ===== ROTA 404 =====
@@ -44,7 +53,8 @@ app.use((err, req, res, next) => {
 });
 
 // ===== INICIAR SERVIDOR =====
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);
     console.log(`📊 Acesse: http://localhost:${PORT}`);
+    console.log(`🔍 Health check: http://localhost:${PORT}/health`);
 });

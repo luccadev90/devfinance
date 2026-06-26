@@ -16,19 +16,13 @@ const financeSchema = new mongoose.Schema({
     type: {
         type: String,
         required: [true, 'Tipo é obrigatório'],
-        enum: {
-            values: ['income', 'expense'],
-            message: 'Tipo deve ser "income" ou "expense"'
-        },
+        enum: ['income', 'expense'],
         default: 'income'
     },
     status: {
         type: String,
         required: [true, 'Status é obrigatório'],
-        enum: {
-            values: ['pending', 'paid'],
-            message: 'Status deve ser "pending" ou "paid"'
-        },
+        enum: ['pending', 'paid'],
         default: 'pending'
     },
     date: {
@@ -36,38 +30,16 @@ const financeSchema = new mongoose.Schema({
         required: [true, 'Data é obrigatória'],
         default: () => new Date().toISOString().split('T')[0]
     },
-    createdAt: {
-        type: Date,
-        default: Date.now
-    },
-    updatedAt: {
-        type: Date
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
     }
 }, {
-    timestamps: true, // Cria automaticamente createdAt e updatedAt
-    toJSON: { virtuals: true },
-    toObject: { virtuals: true }
+    timestamps: true
 });
 
-// Virtual para formatar valor em reais
-financeSchema.virtual('formattedAmount').get(function() {
-    return `R$ ${this.amount.toFixed(2)}`;
-});
-
-// Virtual para exibir status em português
-financeSchema.virtual('statusLabel').get(function() {
-    return this.status === 'paid' ? 'Pago' : 'Pendente';
-});
-
-// Virtual para exibir tipo em português
-financeSchema.virtual('typeLabel').get(function() {
-    return this.type === 'income' ? 'Receita' : 'Despesa';
-});
-
-// Middleware para atualizar updatedAt
-financeSchema.pre('findOneAndUpdate', function(next) {
-    this.set({ updatedAt: new Date() });
-    next();
-});
+// Índice para consultas rápidas
+financeSchema.index({ userId: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Finance', financeSchema);

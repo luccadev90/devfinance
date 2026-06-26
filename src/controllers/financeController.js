@@ -73,7 +73,7 @@ exports.getFinances = async (req, res) => {
         const userId = req.session.userId;
         const statusFilter = req.query.status || 'all';
         const typeFilter = req.query.type || 'all';
-        const monthFilter = req.query.month || 'current'; // 'current' ou número do mês (1-12)
+        const monthFilter = req.query.month || 'current';
         const yearFilter = req.query.year || new Date().getFullYear();
 
         console.log(`📅 Filtro: Mês=${monthFilter}, Ano=${yearFilter}`);
@@ -81,17 +81,28 @@ exports.getFinances = async (req, res) => {
         // Construir filtro base
         const filter = { userId: userId };
 
-        // FILTRO POR MÊS E ANO
+        // ===== FILTRO POR MÊS E ANO =====
+        let selectedMonth, selectedYear;
+        
         if (monthFilter === 'current') {
             // Mês atual
             const now = new Date();
-            filter.month = now.getMonth() + 1;
-            filter.year = now.getFullYear();
+            selectedMonth = now.getMonth() + 1;
+            selectedYear = now.getFullYear();
         } else if (monthFilter && !isNaN(monthFilter)) {
-            // Mês específico (1-12)
-            filter.month = parseInt(monthFilter);
-            filter.year = parseInt(yearFilter);
+            // Mês específico
+            selectedMonth = parseInt(monthFilter);
+            selectedYear = parseInt(yearFilter);
+        } else {
+            // Fallback: mês atual
+            const now = new Date();
+            selectedMonth = now.getMonth() + 1;
+            selectedYear = now.getFullYear();
         }
+
+        // Aplicar filtro de mês/ano
+        filter.month = selectedMonth;
+        filter.year = selectedYear;
 
         // FILTROS ADICIONAIS
         if (statusFilter !== 'all') filter.status = statusFilter;
@@ -99,38 +110,39 @@ exports.getFinances = async (req, res) => {
 
         console.log('🔍 Filtro aplicado:', filter);
 
-        // Buscar dados
+        // ===== BUSCAR TRANSAÇÕES DO MÊS SELECIONADO =====
         const finances = await Finance.find(filter)
             .sort({ date: -1, createdAt: -1 })
             .lean();
 
-        // Buscar também pendências de meses anteriores
-        const pendingFilter = {
-            userId: userId,
-            status: 'pending'
-        };
+        console.log(`📊 Transações do mês ${selectedMonth}/${selectedYear}: ${finances.length}`);
 
-        // Se for mês atual, incluir pendências de meses anteriores
+        // ===== BUSCAR PENDÊNCIAS DE MESES ANTERIORES (se for mês atual) =====
+        let pendingFromPrevious = [];
         if (monthFilter === 'current') {
-            const now = new Date();
-            pendingFilter.month = { $lt: now.getMonth() + 1 };
-            pendingFilter.year = { $lte: now.getFullYear() };
-        }
-
-        const pendingFromPrevious = await Finance.find(pendingFilter)
+            pendingFromPrevious = await Finance.find({
+                userId: userId,
+                status: 'pending',
+                $or: [
+                    { year: { $lt: selectedYear } },
+                    { year: selectedYear, month: { $lt: selectedMonth } }
+                ]
+            })
             .sort({ year: -1, month: -1, createdAt: -1 })
             .lean();
+            
+            console.log(`📊 Pendências de meses anteriores: ${pendingFromPrevious.length}`);
+        }
 
-        console.log(`📊 Mesmo mês: ${finances.length} | Pendências anteriores: ${pendingFromPrevious.length}`);
-
-        // Combinar: primeiro as pendências anteriores, depois as do mês atual
+        // ===== COMBINAR RESULTADOS =====
+        // Primeiro as pendências anteriores, depois as do mês atual
         const allFinances = [...pendingFromPrevious, ...finances];
 
-        // Calcular totais
+        // ===== CALCULAR TOTAIS =====
         const totalItems = await Finance.countDocuments({ userId: userId });
         const balances = calculateBalances(allFinances);
 
-        // Lista de meses disponíveis para o usuário
+        // ===== LISTA DE MESES DISPONÍVEIS =====
         const availableMonths = await Finance.aggregate([
             { $match: { userId: userId } },
             { $group: {
@@ -142,7 +154,10 @@ exports.getFinances = async (req, res) => {
             { $sort: { '_id.year': -1, '_id.month': -1 } }
         ]);
 
-        console.log('📅 Meses disponíveis:', availableMonths);
+        // ===== MÊS ATUAL =====
+        const now = new Date();
+        const currentMonth = now.getMonth() + 1;
+        const currentYear = now.getFullYear();
 
         res.render('index', {
             title: 'DevFinance - Dashboard',
@@ -154,9 +169,11 @@ exports.getFinances = async (req, res) => {
             typeFilter: typeFilter,
             monthFilter: monthFilter,
             yearFilter: yearFilter,
+            selectedMonth: selectedMonth,
+            selectedYear: selectedYear,
             availableMonths: availableMonths,
-            currentMonth: new Date().getMonth() + 1,
-            currentYear: new Date().getFullYear()
+            currentMonth: currentMonth,
+            currentYear: currentYear
         });
     } catch (error) {
         console.error('❌ Erro ao buscar finanças:', error);

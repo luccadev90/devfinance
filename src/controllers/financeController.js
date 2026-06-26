@@ -67,12 +67,11 @@ exports.addCommonData = async (req, res, next) => {
 // CONTROLADORES - ROTAS PRINCIPAIS
 // ============================================
 
-// GET / - Listar finanças com filtro mensal (VERSÃO SUPER SIMPLES)
+// GET / - Listar finanças com filtro mensal (VERSÃO QUE FUNCIONA)
 exports.getFinances = async (req, res) => {
     try {
         const userId = req.session.userId;
         
-        // Pegar filtros da URL
         const statusFilter = req.query.status || 'all';
         const typeFilter = req.query.type || 'all';
         const monthFilter = req.query.month || 'current';
@@ -80,7 +79,6 @@ exports.getFinances = async (req, res) => {
 
         console.log('📥 Filtros:', { monthFilter, yearFilter, statusFilter, typeFilter });
 
-        // Determinar mês e ano
         let selectedMonth, selectedYear;
         let isCurrentMonth = false;
         
@@ -95,19 +93,14 @@ exports.getFinances = async (req, res) => {
             isCurrentMonth = false;
         }
 
-        // BUSCAR TODAS AS TRANSAÇÕES DO USUÁRIO
         const allTransactions = await Finance.find({ userId: userId })
             .sort({ date: -1, createdAt: -1 })
             .lean();
 
-        console.log(`📊 Total de transações: ${allTransactions.length}`);
-
-        // FILTRAR POR MÊS/ANO
         let filteredByMonth = allTransactions.filter(t => 
             t.month === selectedMonth && t.year === selectedYear
         );
 
-        // Se for mês atual, incluir pendências de meses anteriores
         let pendingFromPrevious = [];
         if (isCurrentMonth) {
             pendingFromPrevious = allTransactions.filter(t => 
@@ -116,10 +109,8 @@ exports.getFinances = async (req, res) => {
             );
         }
 
-        // Combinar resultados
         let finances = [...pendingFromPrevious, ...filteredByMonth];
 
-        // Aplicar filtros adicionais
         if (statusFilter !== 'all') {
             finances = finances.filter(t => t.status === statusFilter);
         }
@@ -127,12 +118,8 @@ exports.getFinances = async (req, res) => {
             finances = finances.filter(t => t.type === typeFilter);
         }
 
-        console.log(`📊 Resultado final: ${finances.length} transações`);
-
-        // Calcular balanços
         const balances = calculateBalances(finances);
 
-        // Lista de meses disponíveis (usando os dados que já temos)
         const monthMap = {};
         allTransactions.forEach(t => {
             if (t.month && t.year) {
@@ -150,13 +137,10 @@ exports.getFinances = async (req, res) => {
                 return b.month - a.month;
             });
 
-        console.log('📅 Meses disponíveis:', availableMonths);
-
         const now = new Date();
         const currentMonth = now.getMonth() + 1;
         const currentYear = now.getFullYear();
 
-        // RENDERIZAR
         res.render('index', {
             title: 'DevFinance - Dashboard',
             finances: finances,

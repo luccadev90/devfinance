@@ -4,43 +4,59 @@ const bcrypt = require('bcryptjs');
 const userSchema = new mongoose.Schema({
     name: {
         type: String,
-        required: true,
-        trim: true
+        required: [true, 'Nome é obrigatório'],
+        trim: true,
+        minlength: [3, 'Nome deve ter pelo menos 3 caracteres'],
+        maxlength: [50, 'Nome deve ter no máximo 50 caracteres']
     },
     email: {
         type: String,
-        required: true,
+        required: [true, 'Email é obrigatório'],
         unique: true,
         trim: true,
-        lowercase: true
+        lowercase: true,
+        match: [/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/, 'Email inválido']
     },
     password: {
         type: String,
-        required: true
+        required: [true, 'Senha é obrigatória'],
+        minlength: [6, 'Senha deve ter no mínimo 6 caracteres']
     }
+}, {
+    timestamps: true
 });
 
-// ===== MIDDLEWARE SIMPLIFICADO =====
-userSchema.pre('save', function(next) {
+// ===== MIDDLEWARE PRE-SAVE COM ASYNC/AWAIT =====
+userSchema.pre('save', async function(next) {
     const user = this;
 
+    // Se a senha não foi modificada, pular
     if (!user.isModified('password')) {
         return next();
     }
 
-    bcrypt.genSalt(10, (err, salt) => {
-        if (err) return next(err);
-        bcrypt.hash(user.password, salt, (err, hash) => {
-            if (err) return next(err);
-            user.password = hash;
-            next();
-        });
-    });
+    try {
+        // Gerar salt e hash usando async/await
+        const salt = await bcrypt.genSalt(10);
+        const hash = await bcrypt.hash(user.password, salt);
+        user.password = hash;
+        next();
+    } catch (error) {
+        next(error);
+    }
 });
 
 // ===== MÉTODO PARA COMPARAR SENHA =====
-userSchema.methods.comparePassword = function(candidatePassword) {
-    return bcrypt.compare(candidatePassword, this.password);
+userSchema.methods.comparePassword = async function(candidatePassword) {
+    return await bcrypt.compare(candidatePassword, this.password);
 };
+
+// ===== REMOVER SENHA AO CONVERTER PARA JSON =====
+userSchema.set('toJSON', {
+    transform: function(doc, ret) {
+        delete ret.password;
+        return ret;
+    }
+});
 
 module.exports = mongoose.model('User', userSchema);

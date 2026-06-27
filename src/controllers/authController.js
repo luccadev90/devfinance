@@ -86,49 +86,75 @@ exports.login = async (req, res) => {
 exports.register = async (req, res) => {
     try {
         const { name, email, password, confirmPassword } = req.body;
-       
+
         console.log('📝 Tentativa de cadastro:', email);
         console.log('📦 Body recebido:', req.body);
 
         if (!name || !email || !password || !confirmPassword) {
+            console.log('❌ Campos vazios');
             req.flash('error', 'Preencha todos os campos');
             return res.redirect('/register');
         }
 
         if (password !== confirmPassword) {
+            console.log('❌ Senhas não coincidem');
             req.flash('error', 'As senhas não coincidem');
             return res.redirect('/register');
         }
 
         if (password.length < 6) {
+            console.log('❌ Senha muito curta');
             req.flash('error', 'A senha deve ter no mínimo 6 caracteres');
             return res.redirect('/register');
         }
 
+        console.log('✅ Validações OK');
+
+        // ===== VERIFICAR SE EMAIL JÁ EXISTE =====
+        console.log('🔍 Verificando se email já existe...');
         const existingUser = await User.findOne({ email: email.toLowerCase() });
+        
         if (existingUser) {
+            console.log('❌ Email já existe:', email);
             req.flash('error', 'Este email já está cadastrado');
             return res.redirect('/register');
         }
 
+        console.log('✅ Email disponível');
+
+        // ===== CRIAR USUÁRIO =====
+        console.log('💾 Criando usuário...');
         const user = new User({
             name: name.trim(),
             email: email.toLowerCase(),
             password: password
         });
-          console.log('💾 Salvando usuário...');
-        await user.save();
-         console.log('✅ Usuário salvo! ID:', user._id);
 
+        // ===== SALVAR USUÁRIO =====
+        console.log('💾 Salvando usuário no banco...');
+        try {
+            await user.save();
+            console.log('✅ Usuário salvo com sucesso!');
+            console.log('🆔 ID do usuário:', user._id);
+            console.log('👤 Nome:', user.name);
+            console.log('📧 Email:', user.email);
+        } catch (saveError) {
+            console.error('❌ Erro ao salvar usuário:', saveError.message);
+            console.error('📚 Detalhes do erro:', saveError);
+            throw saveError;
+        }
+
+        console.log('🔀 Redirecionando para login...');
         req.flash('success', 'Cadastro realizado com sucesso! Faça login.');
         res.redirect('/login');
+        
     } catch (error) {
         console.error('❌ Erro no cadastro:', error);
+        console.error('📚 Stack:', error.stack);
         req.flash('error', 'Erro ao cadastrar. Verifique os dados.');
         res.redirect('/register');
     }
 };
-
 // ============================================
 // LOGOUT
 // ============================================

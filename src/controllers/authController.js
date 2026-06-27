@@ -5,12 +5,13 @@ const User = require('../models/User');
 // ============================================
 exports.showLogin = (req, res) => {
     if (req.session && req.session.userId) {
-        console.log('👤 Usuário já logado, redirecionando para dashboard');
         return res.redirect('/');
     }
     
     res.render('auth/login', {
-        title: 'Login - DevFinance'
+        title: 'Login - DevFinance',
+        error: req.flash('error'),
+        success: req.flash('success')
     });
 };
 
@@ -23,7 +24,9 @@ exports.showRegister = (req, res) => {
     }
     
     res.render('auth/register', {
-        title: 'Cadastro - DevFinance'
+        title: 'Cadastro - DevFinance',
+        error: req.flash('error'),
+        success: req.flash('success')
     });
 };
 
@@ -51,28 +54,12 @@ exports.login = async (req, res) => {
             return res.redirect('/login');
         }
 
-        // Criar sessão
         req.session.userId = user._id;
         req.session.userName = user.name;
         req.session.userEmail = user.email;
-        
-        // Inicializar filtros na sessão
-        req.session.monthFilter = 'current';
-        req.session.yearFilter = new Date().getFullYear();
-        req.session.statusFilter = 'all';
-        req.session.typeFilter = 'all';
 
-        // Salvar explicitamente
-        req.session.save((err) => {
-            if (err) {
-                console.error('❌ Erro ao salvar sessão:', err);
-                req.flash('error', 'Erro ao fazer login. Tente novamente.');
-                return res.redirect('/login');
-            }
-            
-            req.flash('success', `Bem-vindo(a) ${user.name}!`);
-            return res.redirect('/');
-        });
+        req.flash('success', `Bem-vindo(a) ${user.name}!`);
+        res.redirect('/');
     } catch (error) {
         console.error('❌ Erro no login:', error);
         req.flash('error', 'Erro ao fazer login. Tente novamente.');
@@ -87,74 +74,39 @@ exports.register = async (req, res) => {
     try {
         const { name, email, password, confirmPassword } = req.body;
 
-        console.log('📝 Tentativa de cadastro:', email);
-        console.log('📦 Body recebido:', req.body);
-
         if (!name || !email || !password || !confirmPassword) {
-            console.log('❌ Campos vazios');
             req.flash('error', 'Preencha todos os campos');
             return res.redirect('/register');
         }
 
         if (password !== confirmPassword) {
-            console.log('❌ Senhas não coincidem');
             req.flash('error', 'As senhas não coincidem');
             return res.redirect('/register');
         }
 
-        if (password.length < 6) {
-            console.log('❌ Senha muito curta');
-            req.flash('error', 'A senha deve ter no mínimo 6 caracteres');
-            return res.redirect('/register');
-        }
-
-        console.log('✅ Validações OK');
-
-        // ===== VERIFICAR SE EMAIL JÁ EXISTE =====
-        console.log('🔍 Verificando se email já existe...');
         const existingUser = await User.findOne({ email: email.toLowerCase() });
-        
         if (existingUser) {
-            console.log('❌ Email já existe:', email);
             req.flash('error', 'Este email já está cadastrado');
             return res.redirect('/register');
         }
 
-        console.log('✅ Email disponível');
-
-        // ===== CRIAR USUÁRIO =====
-        console.log('💾 Criando usuário...');
         const user = new User({
             name: name.trim(),
             email: email.toLowerCase(),
             password: password
         });
 
-        // ===== SALVAR USUÁRIO =====
-        console.log('💾 Salvando usuário no banco...');
-        try {
-            await user.save();
-            console.log('✅ Usuário salvo com sucesso!');
-            console.log('🆔 ID do usuário:', user._id);
-            console.log('👤 Nome:', user.name);
-            console.log('📧 Email:', user.email);
-        } catch (saveError) {
-            console.error('❌ Erro ao salvar usuário:', saveError.message);
-            console.error('📚 Detalhes do erro:', saveError);
-            throw saveError;
-        }
+        await user.save();
 
-        console.log('🔀 Redirecionando para login...');
         req.flash('success', 'Cadastro realizado com sucesso! Faça login.');
         res.redirect('/login');
-        
     } catch (error) {
         console.error('❌ Erro no cadastro:', error);
-        console.error('📚 Stack:', error.stack);
         req.flash('error', 'Erro ao cadastrar. Verifique os dados.');
         res.redirect('/register');
     }
 };
+
 // ============================================
 // LOGOUT
 // ============================================
@@ -163,13 +115,12 @@ exports.logout = (req, res) => {
         if (err) {
             console.error('❌ Erro ao fazer logout:', err);
         }
-        console.log('👋 Logout realizado');
         res.redirect('/login');
     });
 };
 
 // ============================================
-// MIDDLEWARE - VERIFICAR SE ESTÁ LOGADO
+// MIDDLEWARE DE AUTENTICAÇÃO
 // ============================================
 exports.isAuthenticated = (req, res, next) => {
     if (!req.session || !req.session.userId) {

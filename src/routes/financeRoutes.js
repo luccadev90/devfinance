@@ -3,6 +3,7 @@ const router = express.Router();
 const financeController = require('../controllers/financeController');
 const authController = require('../controllers/authController');
 const Finance = require('../models/Finance');
+const testController = require('../controllers/testController');
 
 // ============================================
 // ROTAS PÚBLICAS (NÃO PRECISAM DE LOGIN)
@@ -12,6 +13,10 @@ router.post('/login', authController.login);
 router.get('/register', authController.showRegister);
 router.post('/register', authController.register);
 router.get('/logout', authController.logout);
+
+// ===== ROTAS DE TESTE (NOVAS) =====
+router.post('/test-register', testController.testRegister);
+router.post('/test-login', testController.testLogin);
 
 // Rota de health check
 router.get('/health', (req, res) => {

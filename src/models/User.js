@@ -21,38 +21,22 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: [true, 'Senha é obrigatória'],
         minlength: [6, 'Senha deve ter no mínimo 6 caracteres']
-    },
-    createdAt: {
-        type: Date,
-        default: Date.now
     }
 }, {
     timestamps: true
 });
 
-// ===== MIDDLEWARE PRE-SAVE CORRIGIDO =====
-userSchema.pre('save', function(next) {
-    const user = this;
-    
-    // Se a senha não foi modificada, pular
-    if (!user.isModified('password')) {
-        return next();
+// ===== MIDDLEWARE CORRIGIDO =====
+userSchema.pre('save', async function(next) {
+    if (!this.isModified('password')) return next();
+
+    try {
+        const salt = await bcrypt.genSalt(10);
+        this.password = await bcrypt.hash(this.password, salt);
+        next();
+    } catch (error) {
+        next(error);
     }
-    
-    // Gerar salt e hash
-    bcrypt.genSalt(10, function(err, salt) {
-        if (err) {
-            return next(err);
-        }
-        
-        bcrypt.hash(user.password, salt, function(err, hash) {
-            if (err) {
-                return next(err);
-            }
-            user.password = hash;
-            next();
-        });
-    });
 });
 
 // ===== MÉTODO PARA COMPARAR SENHA =====

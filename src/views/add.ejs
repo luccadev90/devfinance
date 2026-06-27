@@ -1,0 +1,87 @@
+<%- include('partials/header', { title: title }) %>
+
+  <div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+      <div class="card shadow">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0">
+            <i class="bi bi-plus-circle"></i> Nova Transação
+          </h5>
+        </div>
+        <div class="card-body">
+          <form action="/add" method="POST">
+            <!-- Descrição -->
+            <div class="mb-3">
+              <label for="description" class="form-label fw-bold">
+                Descrição <span class="text-danger">*</span>
+              </label>
+              <input type="text" class="form-control" id="description" name="description"
+                placeholder="Ex: Salário, Aluguel, Supermercado..." required autofocus>
+            </div>
+
+            <!-- Valor -->
+            <div class="mb-3">
+              <label for="amount" class="form-label fw-bold">
+                Valor <span class="text-danger">*</span>
+              </label>
+              <div class="input-group">
+                <span class="input-group-text">R$</span>
+                <input type="number" class="form-control amount-input" id="amount" name="amount" placeholder="0,00"
+                  step="0.01" min="0.01" required>
+              </div>
+              <div class="form-text">Use ponto para centavos (ex: 1500.50)</div>
+            </div>
+
+            <!-- Tipo e Status -->
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label for="type" class="form-label fw-bold">
+                  Tipo <span class="text-danger">*</span>
+                </label>
+                <select class="form-select" id="type" name="type" required>
+                  <option value="income">
+                    <i class="bi bi-arrow-up"></i> Receita
+                  </option>
+                  <option value="expense">
+                    <i class="bi bi-arrow-down"></i> Despesa
+                  </option>
+                </select>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label for="status" class="form-label fw-bold">
+                  Status <span class="text-danger">*</span>
+                </label>
+                <select class="form-select" id="status" name="status" required>
+                  <option value="pending" selected>
+                    <i class="bi bi-clock"></i> Pendente
+                  </option>
+                  <option value="paid">
+                    <i class="bi bi-check-circle"></i> Pago
+                  </option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Data -->
+            <div class="mb-3">
+              <label for="date" class="form-label fw-bold">Data</label>
+              <input type="date" class="form-control" id="date" name="date">
+              <div class="form-text">Deixe em branco para usar a data atual</div>
+            </div>
+
+            <!-- Botões -->
+            <div class="d-flex gap-2 justify-content-end mt-4">
+              <a href="/" class="btn btn-secondary">
+                <i class="bi bi-x-circle"></i> Cancelar
+              </a>
+              <button type="submit" class="btn btn-success">
+                <i class="bi bi-check-circle"></i> Salvar
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <%- include('partials/footer') %>

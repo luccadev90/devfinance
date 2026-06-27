@@ -1,0 +1,34 @@
+{
+  "name": "devfinance_2.1",
+  "version": "2.1.0",
+  "description": "Sistema de gerenciamento financeiro pessoal",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "nodemon src/app.js",
+    "migrate": "node src/migrations/migrate.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "blob-stream": "^0.1.3",
+    "body-parser": "^2.3.0",
+    "connect-flash": "^0.1.1",
+    "connect-mongo": "^4.6.0",
+    "dotenv": "^17.4.2",
+    "ejs": "^6.0.1",
+    "express": "^5.2.1",
+    "express-session": "^1.19.0",
+    "method-override": "^3.0.0",
+    "mongoose": "^9.7.3",
+    "pdfkit": "^0.19.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

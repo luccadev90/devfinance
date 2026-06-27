@@ -1,0 +1,49 @@
+<%- include('layout', { title: title, error: error, success: success, body: ` <form action="/register" method="POST">
+  <div class="mb-3">
+    <label for="name" class="form-label fw-bold">Nome completo</label>
+    <div class="input-group">
+      <span class="input-group-text"><i class="bi bi-person"></i></span>
+      <input type="text" class="form-control" id="name" name="name" placeholder="Seu nome" required>
+    </div>
+  </div>
+
+  <div class="mb-3">
+    <label for="email" class="form-label fw-bold">Email</label>
+    <div class="input-group">
+      <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+      <input type="email" class="form-control" id="email" name="email" placeholder="seu@email.com" required>
+    </div>
+  </div>
+
+  <div class="mb-3">
+    <label for="password" class="form-label fw-bold">Senha</label>
+    <div class="input-group">
+      <span class="input-group-text"><i class="bi bi-lock"></i></span>
+      <input type="password" class="form-control" id="password" name="password" placeholder="Mínimo 6 caracteres"
+        required>
+    </div>
+    <div class="form-text">A senha deve ter pelo menos 6 caracteres</div>
+  </div>
+
+  <div class="mb-3">
+    <label for="confirmPassword" class="form-label fw-bold">Confirmar senha</label>
+    <div class="input-group">
+      <span class="input-group-text"><i class="bi bi-lock-fill"></i></span>
+      <input type="password" class="form-control" id="confirmPassword" name="confirmPassword"
+        placeholder="Digite a senha novamente" required>
+    </div>
+  </div>
+
+  <button type="submit" class="btn btn-primary w-100 py-2">
+    <i class="bi bi-person-plus"></i> Criar conta
+  </button>
+  </form>
+
+  <div class="text-center mt-3">
+    <p class="text-muted">
+      Já tem uma conta?
+      <a href="/login" class="text-decoration-none">Faça login</a>
+    </p>
+  </div>
+  `
+  }) %>

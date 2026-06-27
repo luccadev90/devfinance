@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>
+    <%= title %>
+  </title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+  <style>
+    body {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .auth-card {
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      padding: 40px;
+      max-width: 420px;
+      width: 100%;
+      animation: fadeIn 0.5s ease-out;
+    }
+
+    .auth-title {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .auth-title h1 {
+      font-weight: 700;
+      color: #2c3e50;
+    }
+
+    .auth-title p {
+      color: #7f8c8d;
+    }
+
+    .auth-title i {
+      font-size: 48px;
+      color: #667eea;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border: none;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    .toast-container-custom {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 9999;
+      min-width: 280px;
+      max-width: 400px;
+    }
+
+    .toast-custom {
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-bottom: 10px;
+      animation: slideIn 0.3s ease-out;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .toast-success {
+      background-color: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+
+    .toast-danger {
+      background-color: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+
+    .toast-info {
+      background-color: #cce5ff;
+      color: #004085;
+      border: 1px solid #b8daff;
+    }
+
+    @keyframes slideIn {
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="auth-card">
+    <div class="auth-title">
+      <i class="bi bi-coin"></i>
+      <h1>DevFinance</h1>
+      <p>Gerencie suas finanças com inteligência</p>
+    </div>
+
+    <%- body %>
+
+      <hr>
+      <p class="text-center text-muted small">
+        <i class="bi bi-shield-check"></i> Seus dados estão seguros
+      </p>
+  </div>
+
+  <div id="toastContainer" class="toast-container-custom"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = `toast-custom toast-${type}`;
+      const iconMap = { success: '✅', danger: '❌', info: 'ℹ️' };
+      toast.innerHTML = `
+                <span>${iconMap[type] || 'ℹ️'} ${message}</span>
+                <button onclick="this.parentElement.remove()" 
+                        style="background: none; border: none; font-size: 20px; cursor: pointer; padding: 0 8px; color: inherit;">
+                    ×
+                </button>
+            `;
+      container.appendChild(toast);
+      setTimeout(() => {
+        if (toast.parentElement) {
+          toast.style.opacity = '0';
+          toast.style.transition = 'opacity 0.3s';
+          setTimeout(() => toast.remove(), 300);
+        }
+      }, 4000);
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+             if (typeof error !== 'undefined' && error && error.length > 0) { 
+        showToast('= error %>', 'danger');
+             } 
+             if (typeof success !== 'undefined' && success && success.length > 0) { 
+        showToast('= success ', 'success');
+             } 
+             if (typeof info !== 'undefined' && info && info.length > 0) { 
+        showToast('= info ', 'info');
+             }
+        });
+  </script>
+</body>
+
+</html>

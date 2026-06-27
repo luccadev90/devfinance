@@ -1,0 +1,636 @@
+<%- include('partials/header', { title: title }) %>
+
+    <!-- ===== CARD DE SALDO ACUMULADO (COFRINHO) ===== -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm" style="border-left: 5px solid #ffc107;">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap">
+                        <div>
+                            <h6 class="card-subtitle mb-2 text-muted">
+                                <i class="bi bi-piggy-bank"></i> Cofrinho - Saldo Acumulado
+                                <span class="badge bg-warning text-dark ms-2">
+                                    Até <%= String(selectedMonth).padStart(2, '0' ) %>/<%= selectedYear %>
+                                </span>
+                                <% if (previousMonthBalance !==0) { %>
+                                    <span class="badge-ajuste ms-2">
+                                        <i class="bi bi-arrow-left-right"></i>
+                                        Ajuste mês anterior: R$ <%= previousMonthBalance.toFixed(2) %>
+                                    </span>
+                                    <% } %>
+                            </h6>
+                            <h3 class="mb-0 <%= accumulatedBalance >= 0 ? 'text-success' : 'text-danger' %>">
+                                R$ <%= accumulatedBalance.toFixed(2) %>
+                            </h3>
+                            <div class="mt-2">
+                                <span class="badge bg-success me-2">
+                                    <i class="bi bi-arrow-up"></i> Receitas: R$ <%= accumulatedIncome.toFixed(2) %>
+                                </span>
+                                <span class="badge bg-danger me-2">
+                                    <i class="bi bi-arrow-down"></i> Despesas: R$ <%= accumulatedExpense.toFixed(2) %>
+                                </span>
+                                <span class="badge bg-info">
+                                    <i class="bi bi-clock"></i> Pendentes: R$ <%= totalPending.toFixed(2) %>
+                                </span>
+                            </div>
+                        </div>
+                        <div class="text-end">
+                            <small class="text-muted d-block">
+                                <i class="bi bi-arrow-left"></i> Saldo mês anterior:
+                                <strong class="<%= previousMonthBalance >= 0 ? 'text-success' : 'text-danger' %>">
+                                    R$ <%= previousMonthBalance.toFixed(2) %>
+                                </strong>
+                            </small>
+                            <small class="text-muted d-block">
+                                <i class="bi bi-arrow-right"></i> Acumulado anterior:
+                                <strong class="<%= previousMonthAccumulated >= 0 ? 'text-success' : 'text-danger' %>">
+                                    R$ <%= previousMonthAccumulated.toFixed(2) %>
+                                </strong>
+                            </small>
+                            <% if (isCurrentMonth) { %>
+                                <small class="text-muted">
+                                    <i class="bi bi-info-circle"></i>
+                                    <% if (accumulatedBalance>= 0) { %>
+                                        ✅ Saldo positivo: dinheiro disponível
+                                        <% } else { %>
+                                            ⚠️ Saldo negativo: dívida acumulada
+                                            <% } %>
+                                </small>
+                                <% } %>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== RESUMO DO MÊS ATUAL ===== -->
+    <div class="row mb-4 g-3">
+        <div class="col-md-4">
+            <div class="card bg-success text-white shadow-sm h-100">
+                <div class="card-body text-center">
+                    <h6><i class="bi bi-arrow-up"></i> Receitas do Mês</h6>
+                    <h3>R$ <%= currentMonthIncome.toFixed(2) %>
+                    </h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-danger text-white shadow-sm h-100">
+                <div class="card-body text-center">
+                    <h6><i class="bi bi-arrow-down"></i> Despesas do Mês</h6>
+                    <h3>R$ <%= currentMonthExpense.toFixed(2) %>
+                    </h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div
+                class="card <%= currentMonthBalance >= 0 ? 'bg-primary' : 'bg-warning text-dark' %> text-white shadow-sm h-100">
+                <div class="card-body text-center">
+                    <h6><i class="bi bi-wallet2"></i> Saldo do Mês</h6>
+                    <h3>R$ <%= currentMonthBalance.toFixed(2) %>
+                    </h3>
+                    <small>
+                        <% if (currentMonthBalance>= 0) { %>
+                            ✅ Sobrou dinheiro este mês
+                            <% } else { %>
+                                ⚠️ Faltou dinheiro este mês
+                                <% } %>
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== ABAS DO DASHBOARD ===== -->
+    <ul class="nav nav-tabs" id="dashboardTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="resumo-tab" data-bs-toggle="tab" data-bs-target="#resumo" type="button"
+                role="tab">
+                <i class="bi bi-speedometer2"></i> Resumo
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="transacoes-tab" data-bs-toggle="tab" data-bs-target="#transacoes" type="button"
+                role="tab">
+                <i class="bi bi-list-ul"></i> Transações
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="historico-tab" data-bs-toggle="tab" data-bs-target="#historico" type="button"
+                role="tab">
+                <i class="bi bi-clock-history"></i> Histórico Mensal
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="dashboardTabsContent">
+
+        <!-- ===== ABA 1: RESUMO ===== -->
+        <div class="tab-pane fade show active" id="resumo" role="tabpanel">
+            <div class="row mb-4 g-3">
+                <div class="col-12">
+                    <div class="card card-stats card-balance shadow-sm" style="border-left-color: #6f42c1;">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center flex-wrap">
+                                <div>
+                                    <h6 class="card-subtitle mb-2 text-muted">
+                                        <i class="bi bi-calendar-event"></i>
+                                        Período:
+                                        <% var monthNames=['Janeiro','Fevereiro','Março','Abril','Maio','Junho', 'Julho'
+                                            ,'Agosto','Setembro','Outubro','Novembro','Dezembro']; var
+                                            nomeMes=monthNames[(selectedMonth || 1) - 1]; %>
+                                            <strong>
+                                                <%= nomeMes %> de <%= selectedYear || 2024 %>
+                                            </strong>
+                                            <% if (isCurrentMonth) { %>
+                                                <span class="badge bg-success">Mês Atual</span>
+                                                <% } else { %>
+                                                    <span class="badge bg-primary">Histórico</span>
+                                                    <% } %>
+                                    </h6>
+                                    <div>
+                                        <span class="badge bg-success me-2">
+                                            ✅ Pago: R$ <%= (balances && balances.paidBalance ? balances.paidBalance :
+                                                0).toFixed(2) %>
+                                        </span>
+                                        <span class="badge bg-warning text-dark">
+                                            ⏳ Pendente: R$ <%= (balances && balances.pendingBalance ?
+                                                balances.pendingBalance : 0).toFixed(2) %>
+                                        </span>
+                                        <span class="badge bg-info">
+                                            📊 Total: <%= finances.length %> transações
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="text-end">
+                                    <h5
+                                        class="mb-0 <%= (balances && balances.balance && balances.balance >= 0) ? 'text-success' : 'text-danger' %>">
+                                        Saldo do Mês: R$ <%= (balances && balances.balance ? balances.balance :
+                                            0).toFixed(2) %>
+                                    </h5>
+                                    <small class="text-muted">
+                                        <i class="bi bi-arrow-up-circle text-success"></i>
+                                        Receitas: R$ <%= (balances && balances.totalIncome ? balances.totalIncome :
+                                            0).toFixed(2) %>
+                                            <i class="bi bi-arrow-down-circle text-danger ms-2"></i>
+                                            Despesas: R$ <%= (balances && balances.totalExpense ? balances.totalExpense
+                                                : 0).toFixed(2) %>
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-3 col-sm-6">
+                    <div class="card card-stats card-income shadow-sm h-100">
+                        <div class="card-body">
+                            <h6 class="card-subtitle mb-2 text-muted">
+                                <i class="bi bi-arrow-up-circle text-success"></i> Receitas
+                            </h6>
+                            <h4 class="card-title text-success mb-2">R$ <%= (balances && balances.totalIncome ?
+                                    balances.totalIncome : 0).toFixed(2) %>
+                            </h4>
+                            <div class="d-flex justify-content-between small">
+                                <span class="text-muted">
+                                    <i class="bi bi-check-circle text-success"></i> Pago: R$ <%= (balances &&
+                                        balances.paidIncome ? balances.paidIncome : 0).toFixed(2) %>
+                                </span>
+                                <span class="text-muted">
+                                    <i class="bi bi-clock text-warning"></i> Pendente: R$ <%= (balances &&
+                                        balances.pendingIncome ? balances.pendingIncome : 0).toFixed(2) %>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-3 col-sm-6">
+                    <div class="card card-stats card-expense shadow-sm h-100">
+                        <div class="card-body">
+                            <h6 class="card-subtitle mb-2 text-muted">
+                                <i class="bi bi-arrow-down-circle text-danger"></i> Despesas
+                            </h6>
+                            <h4 class="card-title text-danger mb-2">R$ <%= (balances && balances.totalExpense ?
+                                    balances.totalExpense : 0).toFixed(2) %>
+                            </h4>
+                            <div class="d-flex justify-content-between small">
+                                <span class="text-muted">
+                                    <i class="bi bi-check-circle text-success"></i> Pago: R$ <%= (balances &&
+                                        balances.paidExpense ? balances.paidExpense : 0).toFixed(2) %>
+                                </span>
+                                <span class="text-muted">
+                                    <i class="bi bi-clock text-warning"></i> Pendente: R$ <%= (balances &&
+                                        balances.pendingExpense ? balances.pendingExpense : 0).toFixed(2) %>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-3 col-sm-6">
+                    <div class="card card-stats card-balance shadow-sm h-100">
+                        <div class="card-body">
+                            <h6 class="card-subtitle mb-2 text-muted">
+                                <i class="bi bi-wallet2"></i> Saldo do Mês
+                            </h6>
+                            <h4
+                                class="card-title mb-2 <%= (balances && balances.balance && balances.balance >= 0) ? 'text-success' : 'text-danger' %>">
+                                R$ <%= (balances && balances.balance ? balances.balance : 0).toFixed(2) %>
+                            </h4>
+                            <div class="d-flex justify-content-between small">
+                                <span class="text-muted">
+                                    <i class="bi bi-arrow-up-circle text-success"></i> Pago: R$ <%= (balances &&
+                                        balances.paidBalance ? balances.paidBalance : 0).toFixed(2) %>
+                                </span>
+                                <span class="text-muted">
+                                    <i class="bi bi-arrow-down-circle text-danger"></i> Pendente: R$ <%= (balances &&
+                                        balances.pendingBalance ? balances.pendingBalance : 0).toFixed(2) %>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-3 col-sm-6">
+                    <div class="card card-stats card-paid shadow-sm h-100">
+                        <div class="card-body">
+                            <h6 class="card-subtitle mb-2 text-muted">
+                                <i class="bi bi-list-ul"></i> Transações
+                            </h6>
+                            <h4 class="card-title text-primary mb-2">
+                                <%= finances.length %>
+                            </h4>
+                            <div class="d-flex justify-content-between small">
+                                <span class="text-muted">
+                                    <i class="bi bi-arrow-up text-success"></i> Receitas: <%=
+                                        finances.filter(function(f) { return f.type==='income' ; }).length %>
+                                </span>
+                                <span class="text-muted">
+                                    <i class="bi bi-arrow-down text-danger"></i> Despesas: <%=
+                                        finances.filter(function(f) { return f.type==='expense' ; }).length %>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== ABA 2: TRANSAÇÕES ===== -->
+        <div class="tab-pane fade" id="transacoes" role="tabpanel">
+            <!-- ===== FILTROS ===== -->
+            <div class="filter-section">
+                <div class="row align-items-center g-2">
+                    <div class="col-md-12">
+                        <h5 class="mb-2">
+                            <i class="bi bi-funnel"></i> Filtrar Transações
+                            <span class="badge bg-primary ms-2">
+                                <%= finances.length %> itens
+                            </span>
+                        </h5>
+                    </div>
+                    <div class="col-md-12">
+                        <form method="GET" action="/" class="row g-2">
+                            <div class="col-md-3">
+                                <select name="month" class="form-select form-select-sm" onchange="this.form.submit()">
+                                    <option value="current" <%=monthFilter==='current' ? 'selected' : '' %>>📅 Mês Atual
+                                    </option>
+                                    <% if (availableMonths && availableMonths.length> 0) { %>
+                                        <% availableMonths.forEach(function(m) { %>
+                                            <option value="<%= m.month %>" <%=(monthFilter==m.month &&
+                                                yearFilter==m.year) ? 'selected' : '' %>>
+                                                📆 <%= String(m.month).padStart(2, '0' ) %>/<%= m.year %>
+                                                        (<%= m.count %> itens | Saldo: R$ <%= m.balance.toFixed(2) %>)
+                                            </option>
+                                            <% }); %>
+                                                <% } %>
+                                </select>
+                            </div>
+                            <input type="hidden" name="year" value="<%= yearFilter %>">
+                            <div class="col-md-3">
+                                <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+                                    <option value="all" <%=statusFilter==='all' ? 'selected' : '' %>>Todos os Status
+                                    </option>
+                                    <option value="pending" <%=statusFilter==='pending' ? 'selected' : '' %>>⏳ Pendente
+                                    </option>
+                                    <option value="paid" <%=statusFilter==='paid' ? 'selected' : '' %>>✅ Pago</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <select name="type" class="form-select form-select-sm" onchange="this.form.submit()">
+                                    <option value="all" <%=typeFilter==='all' ? 'selected' : '' %>>Todos os Tipos
+                                    </option>
+                                    <option value="income" <%=typeFilter==='income' ? 'selected' : '' %>>⬆ Receita
+                                    </option>
+                                    <option value="expense" <%=typeFilter==='expense' ? 'selected' : '' %>>⬇ Despesa
+                                    </option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="d-flex gap-2">
+                                    <button type="submit" class="btn btn-primary btn-sm flex-grow-1">
+                                        <i class="bi bi-search"></i> Filtrar
+                                    </button>
+                                    <a href="/" class="btn btn-secondary btn-sm">
+                                        <i class="bi bi-x-circle"></i> Limpar
+                                    </a>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                <div class="mt-2">
+                    <small class="text-muted">
+                        <i class="bi bi-info-circle"></i>
+                        <% if (isCurrentMonth) { %>
+                            Mostrando <strong>mês atual</strong> + pendências de meses anteriores
+                            <% } else { %>
+                                Mostrando <strong>histórico</strong> de <strong>
+                                    <%= nomeMes %> de <%= selectedYear %>
+                                </strong>
+                                <% } %>
+                                    | Total: <strong>
+                                        <%= finances.length %>
+                                    </strong> transações
+                                    <% var pendingCount=finances.filter(function(f) { return f.status==='pending' ;
+                                        }).length; if (pendingCount> 0) {
+                                        %>
+                                        | ⚠️ <strong class="text-warning">
+                                            <%= pendingCount %>
+                                        </strong> pendentes
+                                        <% } %>
+                    </small>
+                </div>
+            </div>
+
+            <!-- ===== TABELA DE TRANSAÇÕES ===== -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+                    <h5 class="mb-0"><i class="bi bi-table"></i> Lista de Transações</h5>
+                    <div>
+                        <a href="/export/pdf?month=<%= selectedMonth %>&year=<%= selectedYear %>" target="_blank"
+                            class="btn btn-danger btn-sm me-2">
+                            <i class="bi bi-file-pdf"></i> PDF
+                        </a>
+                        <a href="/add" class="btn btn-success btn-sm">
+                            <i class="bi bi-plus-circle"></i> Nova Transação
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover finance-table mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width: 50px;">#</th>
+                                    <th>Descrição</th>
+                                    <th style="width: 100px;">Tipo</th>
+                                    <th style="width: 130px;">Valor</th>
+                                    <th style="width: 110px;">Data</th>
+                                    <th style="width: 120px;">Status</th>
+                                    <th style="width: 140px; text-align: center;">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% if (!finances || finances.length===0) { %>
+                                    <tr>
+                                        <td colspan="7" class="text-center py-5 text-muted">
+                                            <i class="bi bi-inbox display-4 d-block mb-3"></i>
+                                            <h5>Nenhuma transação encontrada</h5>
+                                            <p class="mb-3">Nenhuma transação para <strong>
+                                                    <%= nomeMes %> de <%= selectedYear %>
+                                                </strong></p>
+                                            <a href="/add" class="btn btn-primary">
+                                                <i class="bi bi-plus-circle"></i> Adicionar
+                                            </a>
+                                            <% if (typeof isDevelopment !=='undefined' && isDevelopment) { %>
+                                                <a href="/test-data" class="btn btn-outline-secondary ms-2">
+                                                    <i class="bi bi-database"></i> Dados de Teste
+                                                </a>
+                                                <% } %>
+                                        </td>
+                                    </tr>
+                                    <% } else { %>
+                                        <% finances.forEach(function(finance, index) { %>
+                                            <% if (finance.isAdjustment) { %>
+                                                <!-- ===== LINHA DE AJUSTE DO MÊS ANTERIOR ===== -->
+                                                <tr class="table-warning">
+                                                    <td><span class="badge bg-secondary">AJ</span></td>
+                                                    <td>
+                                                        <strong>
+                                                            <%= finance.description %>
+                                                        </strong>
+                                                        <br>
+                                                        <small class="text-muted">
+                                                            <i class="bi bi-arrow-left-right"></i> Ajuste automático
+                                                        </small>
+                                                    </td>
+                                                    <td>
+                                                        <span
+                                                            class="badge <%= finance.type === 'income' ? 'bg-success' : 'bg-danger' %>">
+                                                            <i
+                                                                class="bi <%= finance.type === 'income' ? 'bi-arrow-up' : 'bi-arrow-down' %>"></i>
+                                                            <%= finance.type==='income' ? 'Sobra' : 'Dívida' %>
+                                                        </span>
+                                                    </td>
+                                                    <td
+                                                        class="<%= finance.type === 'income' ? 'amount-income' : 'amount-expense' %>">
+                                                        R$ <%= finance.amount.toFixed(2) %>
+                                                    </td>
+                                                    <td>
+                                                        <%= finance.date %>
+                                                    </td>
+                                                    <td>
+                                                        <span class="status-badge bg-success text-white">
+                                                            <i class="bi bi-check-circle"></i> Automático
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        <span class="badge bg-secondary">Ajuste</span>
+                                                    </td>
+                                                </tr>
+                                                <% } else { %>
+                                                    <!-- ===== LINHA NORMAL DE TRANSAÇÃO ===== -->
+                                                    <tr>
+                                                        <td>
+                                                            <%= index + 1 %>
+                                                        </td>
+                                                        <td>
+                                                            <strong>
+                                                                <%= finance.description %>
+                                                            </strong>
+                                                            <br>
+                                                            <small class="text-muted">
+                                                                <i class="bi bi-calendar"></i>
+                                                                        <%= finance.date %>
+                                                                    <span class="badge bg-secondary ms-1">
+                                                                        <%= String(finance.month).padStart(2, '0' ) %>/
+                                                                            <%= finance.year %>
+                                                                    </span>
+                                                            </small>
+                                                        </td>
+                                                        <td>
+                                                            <span
+                                                                class="badge <%= finance.type === 'income' ? 'bg-success' : 'bg-danger' %>">
+                                                                <i
+                                                                    class="bi <%= finance.type === 'income' ? 'bi-arrow-up' : 'bi-arrow-down' %>"></i>
+                                                                <%= finance.type==='income' ? 'Receita' : 'Despesa' %>
+                                                            </span>
+                                                        </td>
+                                                        <td
+                                                            class="<%= finance.type === 'income' ? 'amount-income' : 'amount-expense' %>">
+                                                            R$ <%= finance.amount.toFixed(2) %>
+                                                        </td>
+                                                        <td>
+                                                            <%= finance.date %>
+                                                        </td>
+                                                        <td>
+                                                            <span
+                                                                class="status-badge <%= finance.status === 'paid' ? 'bg-success text-white' : 'bg-warning text-dark' %>">
+                                                                <i
+                                                                    class="bi <%= finance.status === 'paid' ? 'bi-check-circle' : 'bi-clock' %>"></i>
+                                                                <%= finance.status==='paid' ? 'Pago' : 'Pendente' %>
+                                                            </span>
+                                                        </td>
+                                                        <td>
+                                                            <div class="d-flex justify-content-center gap-1">
+                                                                <button class="btn btn-outline-info btn-icon"
+                                                                    onclick="toggleStatus('<%= finance._id %>')"
+                                                                    title="Alternar status">
+                                                                    <i class="bi bi-arrow-repeat"></i>
+                                                                </button>
+                                                                <a href="/edit/<%= finance._id %>"
+                                                                    class="btn btn-outline-primary btn-icon"
+                                                                    title="Editar">
+                                                                    <i class="bi bi-pencil"></i>
+                                                                </a>
+                                                                <button class="btn btn-outline-danger btn-icon"
+                                                                    onclick="confirmDelete('<%= finance._id %>')"
+                                                                    title="Excluir">
+                                                                    <i class="bi bi-trash"></i>
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    <% } %>
+                                                        <% }); %>
+                                                            <% } %>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== ABA 3: HISTÓRICO MENSAL ===== -->
+        <div class="tab-pane fade" id="historico" role="tabpanel">
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0">
+                        <i class="bi bi-clock-history"></i> Histórico Mensal - Saldo Acumulado
+                        <span class="badge bg-secondary ms-2">Mês a mês</span>
+                    </h6>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Mês/Ano</th>
+                                    <th class="text-end">Receitas</th>
+                                    <th class="text-end">Despesas</th>
+                                    <th class="text-end">Saldo do Mês</th>
+                                    <th class="text-end">Acumulado</th>
+                                    <th class="text-center">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% if (monthBalances && monthBalances.length> 0) { %>
+                                    <% monthBalances.sort(function(a, b) { if (a.year !==b.year) return b.year - a.year;
+                                        return b.month - a.month; }).forEach(function(m) { %>
+                                        <tr>
+                                            <td>
+                                                <strong>
+                                                    <%= String(m.month).padStart(2, '0' ) %>/<%= m.year %>
+                                                </strong>
+                                                <span class="badge bg-secondary ms-1">
+                                                    <%= m.transactions.length %> itens
+                                                </span>
+                                                <% if (m.balance < 0) { %>
+                                                    <span class="badge bg-danger ms-1">⚠️ Dívida</span>
+                                                    <% } else if (m.balance> 0) { %>
+                                                        <span class="badge bg-success ms-1">✅ Sobrou</span>
+                                                        <% } %>
+                                            </td>
+                                            <td class="text-end text-success">R$ <%= m.income.toFixed(2) %>
+                                            </td>
+                                            <td class="text-end text-danger">R$ <%= m.expense.toFixed(2) %>
+                                            </td>
+                                            <td class="text-end <%= m.balance >= 0 ? 'text-success' : 'text-danger' %>">
+                                                <strong>R$ <%= m.balance.toFixed(2) %></strong>
+                                            </td>
+                                            <td
+                                                class="text-end <%= m.accumulatedBalance >= 0 ? 'text-success' : 'text-danger' %>">
+                                                <strong>R$ <%= m.accumulatedBalance.toFixed(2) %></strong>
+                                            </td>
+                                            <td class="text-center">
+                                                <% if (m.balance>= 0) { %>
+                                                    <span class="badge bg-success">✅ Sobrou</span>
+                                                    <% } else { %>
+                                                        <span class="badge bg-danger">⚠️ Faltou</span>
+                                                        <% } %>
+                                                            <br>
+                                                            <small class="text-muted">
+                                                                <%= m.transactions.length> 0 ? m.transactions.length + ' transações' : 'vazio' %>
+                                                            </small>
+                                            </td>
+                                        </tr>
+                                        <% }); %>
+                                            <% } else { %>
+                                                <tr>
+                                                    <td colspan="6" class="text-center py-4 text-muted">
+                                                        <i class="bi bi-inbox d-block mb-2"></i>
+                                                        Nenhum dado disponível para o histórico mensal
+                                                    </td>
+                                                </tr>
+                                                <% } %>
+                            </tbody>
+                            <% if (monthBalances && monthBalances.length> 0) {
+                                var totalIncome = monthBalances.reduce(function(sum, m) { return sum + m.income; }, 0);
+                                var totalExpense = monthBalances.reduce(function(sum, m) { return sum + m.expense; },
+                                0);
+                                var totalBalance = monthBalances.reduce(function(sum, m) { return sum + m.balance; },
+                                0);
+                                var lastAccumulated = monthBalances[monthBalances.length - 1].accumulatedBalance;
+                                %>
+                                <tfoot class="table-light">
+                                    <tr>
+                                        <td><strong>TOTAL</strong></td>
+                                        <td class="text-end text-success">
+                                            <strong>R$ <%= totalIncome.toFixed(2) %></strong>
+                                        </td>
+                                        <td class="text-end text-danger">
+                                            <strong>R$ <%= totalExpense.toFixed(2) %></strong>
+                                        </td>
+                                        <td class="text-end <%= totalBalance >= 0 ? 'text-success' : 'text-danger' %>">
+                                            <strong>R$ <%= totalBalance.toFixed(2) %></strong>
+                                        </td>
+                                        <td
+                                            class="text-end <%= lastAccumulated >= 0 ? 'text-success' : 'text-danger' %>">
+                                            <strong>R$ <%= lastAccumulated.toFixed(2) %></strong>
+                                        </td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
+                                <% } %>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <%- include('partials/footer') %>

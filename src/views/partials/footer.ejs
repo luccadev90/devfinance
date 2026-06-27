@@ -1,0 +1,222 @@
+</div> <!-- Fecha container -->
+
+<!-- ===== FOOTER ===== -->
+<footer class="footer mt-5 py-4 bg-dark text-white">
+  <div class="container">
+    <div class="row">
+      <div class="col-md-6">
+        <h5>
+          <i class="bi bi-coin text-warning"></i> DevFinance
+        </h5>
+        <p class="text-muted small mb-0">
+          Sistema de finanças pessoais desenvolvido com
+        </p>
+      </div>
+      <div class="col-md-3">
+        <h6 class="text-warning">Desenvolvedor</h6>
+        <p class="small mb-1">
+          <i class="bi bi-person"></i> Lucca Andrade Lopes
+        </p>
+        <p class="small mb-1">
+          <i class="bi bi-geo-alt"></i> Caraguatatuba - SP
+        </p>
+        <p class="small mb-0">
+          <i class="bi bi-calendar"></i> 36 anos
+        </p>
+      </div>
+      <div class="col-md-3">
+        <h6 class="text-warning">Sobre</h6>
+        <p class="small text-muted mb-1">
+          <i class="bi bi-code-square"></i> 4 anos na área de TI
+        </p>
+        <p class="small text-muted mb-0">
+          <i class="bi bi-rocket"></i> Primeiro projeto web
+        </p>
+        <div class="mt-2">
+          <span class="badge bg-primary">JavaScript</span>
+          <span class="badge bg-success">Node.js</span>
+          <span class="badge bg-info">React</span>
+          <span class="badge bg-warning text-dark">HTML5</span>
+          <span class="badge bg-danger">CSS3</span>
+          <span class="badge bg-secondary">Bootstrap</span>
+          <span class="badge bg-success">Vue.js</span>
+          <span class="badge bg-primary">MongoDB</span>
+          <span class="badge bg-light text-dark">EJS</span>
+          <span class="badge bg-warning">Express</span>
+        </div>
+      </div>
+    </div>
+    <hr class="border-secondary">
+    <div class="row">
+      <div class="col-12 text-center small text-muted">
+        <i class="bi bi-c-circle"></i> 2024 - Lucca Andrade Lopes - Todos os direitos reservados
+        <br>
+        <span class="badge bg-secondary mt-1">Versão 2.0</span>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<!-- ===== TOAST CONTAINER ===== -->
+<div id="toastContainer" class="toast-container-custom"></div>
+
+<!-- ===== DADOS DO SERVIDOR PARA O JAVASCRIPT ===== -->
+<div id="flashMessages" style="display: none;" data-error="<%= typeof error !== 'undefined' ? error : '' %>"
+  data-success="<%= typeof success !== 'undefined' ? success : '' %>"
+  data-info="<%= typeof info !== 'undefined' ? info : '' %>">
+</div>
+
+<!-- ===== SCRIPTS ===== -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  // ============================================
+  // TOAST UNIFICADO
+  // ============================================
+  function showToast(message, type = 'info') {
+    const container = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    toast.className = `toast-custom toast-${type}`;
+
+    const iconMap = {
+      success: '✅',
+      danger: '❌',
+      info: 'ℹ️'
+    };
+
+    toast.innerHTML = `
+                <span>${iconMap[type] || 'ℹ️'} ${message}</span>
+                <button onclick="this.parentElement.remove()" 
+                        style="background: none; border: none; font-size: 20px; cursor: pointer; padding: 0 8px; color: inherit;">
+                    ×
+                </button>
+            `;
+
+    container.appendChild(toast);
+
+    setTimeout(() => {
+      if (toast.parentElement) {
+        toast.style.opacity = '0';
+        toast.style.transition = 'opacity 0.3s';
+        setTimeout(() => toast.remove(), 300);
+      }
+    }, 4000);
+  }
+
+  // ============================================
+  // EXPORTAR DADOS
+  // ============================================
+  function exportData() {
+    fetch('/api/export')
+      .then(response => response.json())
+      .then(data => {
+        const blob = new Blob([JSON.stringify(data, null, 2)], {
+          type: 'application/json'
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `financas_${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        showToast('✅ Dados exportados com sucesso!', 'success');
+      })
+      .catch(error => {
+        console.error('Erro ao exportar:', error);
+        showToast('❌ Erro ao exportar dados', 'danger');
+      });
+  }
+
+  // ============================================
+  // ALTERNAR STATUS
+  // ============================================
+  function toggleStatus(id) {
+    const buttons = document.querySelectorAll(`button[onclick*="toggleStatus('${id}')"]`);
+    buttons.forEach(btn => {
+      btn.disabled = true;
+      btn.innerHTML = '⏳';
+    });
+
+    fetch(`/toggle/${id}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          showToast(`✅ Status alterado para ${data.status === 'paid' ? 'Pago' : 'Pendente'}!`, 'success');
+          setTimeout(() => {
+            window.location.reload();
+          }, 800);
+        } else {
+          showToast('❌ Erro ao alternar status', 'danger');
+          buttons.forEach(btn => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-arrow-repeat"></i>';
+          });
+        }
+      })
+      .catch(error => {
+        console.error('❌ Erro:', error);
+        showToast('❌ Erro ao alternar status', 'danger');
+        buttons.forEach(btn => {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="bi bi-arrow-repeat"></i>';
+        });
+      });
+  }
+
+  // ============================================
+  // CONFIRMAR EXCLUSÃO
+  // ============================================
+  function confirmDelete(id) {
+    if (confirm('⚠️ Tem certeza que deseja excluir esta transação?')) {
+      const btns = document.querySelectorAll(`button[onclick*="confirmDelete('${id}')"]`);
+      btns.forEach(btn => {
+        btn.textContent = '⏳';
+        btn.disabled = true;
+      });
+
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = `/delete/${id}?_method=DELETE`;
+      document.body.appendChild(form);
+      form.submit();
+    }
+  }
+
+  // ============================================
+  // INICIALIZAÇÃO
+  // ============================================
+  document.addEventListener('DOMContentLoaded', function () {
+    console.log('🚀 DevFinance - Desenvolvido por Lucca Andrade Lopes');
+    console.log('📍 Caraguatatuba - SP | 36 anos');
+    console.log('💻 4 anos na área de TI');
+    console.log('🌟 Primeiro projeto web!');
+
+    // ===== LER MENSAGENS FLASH DO ELEMENTO HTML =====
+    const flashDiv = document.getElementById('flashMessages');
+    if (flashDiv) {
+      const error = flashDiv.dataset.error;
+      const success = flashDiv.dataset.success;
+      const info = flashDiv.dataset.info;
+
+      if (error && error.length > 0 && error !== 'undefined') {
+        showToast(error, 'danger');
+      }
+      if (success && success.length > 0 && success !== 'undefined') {
+        showToast(success, 'success');
+      }
+      if (info && info.length > 0 && info !== 'undefined') {
+        showToast(info, 'info');
+      }
+    }
+  });
+</script>
+</body>
+
+</html>

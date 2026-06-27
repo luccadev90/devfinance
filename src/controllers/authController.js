@@ -86,6 +86,9 @@ exports.login = async (req, res) => {
 exports.register = async (req, res) => {
     try {
         const { name, email, password, confirmPassword } = req.body;
+       
+        console.log('📝 Tentativa de cadastro:', email);
+        console.log('📦 Body recebido:', req.body);
 
         if (!name || !email || !password || !confirmPassword) {
             req.flash('error', 'Preencha todos os campos');
@@ -113,8 +116,9 @@ exports.register = async (req, res) => {
             email: email.toLowerCase(),
             password: password
         });
-
+          console.log('💾 Salvando usuário...');
         await user.save();
+         console.log('✅ Usuário salvo! ID:', user._id);
 
         req.flash('success', 'Cadastro realizado com sucesso! Faça login.');
         res.redirect('/login');

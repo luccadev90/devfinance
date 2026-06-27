@@ -30,25 +30,37 @@ const userSchema = new mongoose.Schema({
     timestamps: true
 });
 
-// Criptografar senha antes de salvar
-userSchema.pre('save', async function(next) {
-    if (!this.isModified('password')) return next();
+// ===== MIDDLEWARE PRE-SAVE CORRIGIDO =====
+userSchema.pre('save', function(next) {
+    const user = this;
     
-    try {
-        const salt = await bcrypt.genSalt(10);
-        this.password = await bcrypt.hash(this.password, salt);
-        next();
-    } catch (error) {
-        next(error);
+    // Se a senha não foi modificada, pular
+    if (!user.isModified('password')) {
+        return next();
     }
+    
+    // Gerar salt e hash
+    bcrypt.genSalt(10, function(err, salt) {
+        if (err) {
+            return next(err);
+        }
+        
+        bcrypt.hash(user.password, salt, function(err, hash) {
+            if (err) {
+                return next(err);
+            }
+            user.password = hash;
+            next();
+        });
+    });
 });
 
-// Método para comparar senha
+// ===== MÉTODO PARA COMPARAR SENHA =====
 userSchema.methods.comparePassword = async function(candidatePassword) {
     return await bcrypt.compare(candidatePassword, this.password);
 };
 
-// Remover senha ao converter para JSON
+// ===== REMOVER SENHA AO CONVERTER PARA JSON =====
 userSchema.set('toJSON', {
     transform: function(doc, ret) {
         delete ret.password;

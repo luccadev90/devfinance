@@ -115,6 +115,28 @@ app.use((err, req, res, next) => {
         message: errorMessage
     });
 });
+// ===== ROTA DE TESTE SIMPLES =====
+app.get('/test-db', async (req, res) => {
+    try {
+        const mongoose = require('mongoose');
+        const testSchema = new mongoose.Schema({
+            name: String,
+            email: String,
+            createdAt: { type: Date, default: Date.now }
+        });
+        const Test = mongoose.model('Test', testSchema);
+        
+        const test = new Test({
+            name: 'Teste Render',
+            email: 'render@teste.com'
+        });
+        
+        await test.save();
+        res.json({ success: true, message: 'Dados salvos com sucesso!' });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
 
 // ===== INICIAR SERVIDOR =====
 app.listen(PORT, '0.0.0.0', () => {

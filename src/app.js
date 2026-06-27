@@ -13,7 +13,7 @@ const connectDB = require('./config/database');
 const financeRoutes = require('./routes/financeRoutes');
 
 const app = express();
-const PORT = process.env.PORT || 3030;
+const PORT = process.env.PORT || 8080;
 
 // ===== CONECTAR AO MONGODB =====
 connectDB();

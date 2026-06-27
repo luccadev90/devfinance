@@ -26,22 +26,21 @@ const userSchema = new mongoose.Schema({
     timestamps: true
 });
 
-// ===== MIDDLEWARE CORRIGIDO =====
+// ===== MIDDLEWARE PRE-SAVE CORRIGIDO =====
 userSchema.pre('save', function(next) {
     const user = this;
-    
+
     // Se a senha não foi modificada, pular
     if (!user.isModified('password')) {
         return next();
     }
-    
+
     // Gerar salt e hash usando bcrypt com callbacks
-    bcrypt.genSalt(10, function(err, salt) {
+    bcrypt.genSalt(10, (err, salt) => {
         if (err) {
             return next(err);
         }
-        
-        bcrypt.hash(user.password, salt, function(err, hash) {
+        bcrypt.hash(user.password, salt, (err, hash) => {
             if (err) {
                 return next(err);
             }

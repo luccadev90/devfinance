@@ -33,6 +33,9 @@ router.get('/health', (req, res) => {
 router.use(authController.isAuthenticated);
 router.use(authController.addUserToLocals);
 router.use(financeController.addCommonData);
+// ===== ROTAS PROTEGIDAS =====
+
+router.get('/', financeController.getFinances);
 
 // Rotas principais
 router.get('/', financeController.getFinances);

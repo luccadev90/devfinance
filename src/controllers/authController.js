@@ -82,30 +82,58 @@ exports.login = async (req, res) => {
     try {
         const { email, password } = req.body;
 
+        console.log('📝 Tentativa de login:', email);
+
         if (!email || !password) {
+            console.log('❌ Campos vazios');
             req.flash('error', 'Preencha todos os campos');
             return res.redirect('/login');
         }
 
+        // Buscar usuário
         const user = await User.findOne({ email: email.toLowerCase() });
         if (!user) {
+            console.log('❌ Usuário não encontrado:', email);
             req.flash('error', 'Email ou senha incorretos');
             return res.redirect('/login');
         }
 
-        // ===== COMPARAR SENHA =====
+        console.log('✅ Usuário encontrado:', user.name);
+        console.log('🔑 Senha no banco:', user.password.substring(0, 10) + '...');
+
+        // Comparar senha
         const isMatch = await bcrypt.compare(password, user.password);
+        console.log('🔍 Resultado da comparação:', isMatch);
+
         if (!isMatch) {
+            console.log('❌ Senha incorreta');
             req.flash('error', 'Email ou senha incorretos');
             return res.redirect('/login');
         }
 
+        console.log('✅ Senha correta!');
+
+        // Criar sessão
         req.session.userId = user._id;
         req.session.userName = user.name;
         req.session.userEmail = user.email;
 
-        req.flash('success', `Bem-vindo(a) ${user.name}!`);
-        res.redirect('/');
+        console.log('📦 Sessão criada:', req.session);
+        console.log('🆔 userId:', req.session.userId);
+
+        req.session.save((err) => {
+            if (err) {
+                console.error('❌ Erro ao salvar sessão:', err);
+                req.flash('error', 'Erro ao fazer login. Tente novamente.');
+                return res.redirect('/login');
+            }
+            
+            console.log('✅ Sessão salva com sucesso!');
+            console.log('🔀 Redirecionando para dashboard...');
+            req.flash('success', `Bem-vindo(a) ${user.name}!`);
+            return res.redirect('/');
+        });
+
     } catch (error) {
         console.error('❌ Erro no login:', error);
         req.flash('error', 'Erro ao fazer login. Tente novamente.');

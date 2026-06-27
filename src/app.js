@@ -45,12 +45,10 @@ app.use(session({
     secret: process.env.SESSION_SECRET || 'devfinance-super-secret-key-2024',
     resave: false,
     saveUninitialized: false,
-    store: sessionStore,
     cookie: {
-        secure: isProduction ? true : false,
+        secure: false, // <-- IMPORTANTE: em desenvolvimento, deixe false
         httpOnly: true,
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-        sameSite: 'lax'
+        maxAge: 7 * 24 * 60 * 60 * 1000
     },
     name: 'devfinance.sid'
 }));

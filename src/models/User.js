@@ -1,61 +1,21 @@
 const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema({
     name: {
         type: String,
-        required: [true, 'Nome é obrigatório'],
-        trim: true,
-        minlength: [3, 'Nome deve ter pelo menos 3 caracteres'],
-        maxlength: [50, 'Nome deve ter no máximo 50 caracteres']
+        required: true,
+        trim: true
     },
     email: {
         type: String,
-        required: [true, 'Email é obrigatório'],
+        required: true,
         unique: true,
         trim: true,
-        lowercase: true,
-        match: [/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/, 'Email inválido']
+        lowercase: true
     },
     password: {
         type: String,
-        required: [true, 'Senha é obrigatória'],
-        minlength: [6, 'Senha deve ter no mínimo 6 caracteres']
-    }
-}, {
-    timestamps: true
-});
-
-// ===== MIDDLEWARE PRE-SAVE COM ASYNC/AWAIT =====
-userSchema.pre('save', async function(next) {
-    const user = this;
-
-    // Se a senha não foi modificada, pular
-    if (!user.isModified('password')) {
-        return next();
-    }
-
-    try {
-        // Gerar salt e hash usando async/await
-        const salt = await bcrypt.genSalt(10);
-        const hash = await bcrypt.hash(user.password, salt);
-        user.password = hash;
-        next();
-    } catch (error) {
-        next(error);
-    }
-});
-
-// ===== MÉTODO PARA COMPARAR SENHA =====
-userSchema.methods.comparePassword = async function(candidatePassword) {
-    return await bcrypt.compare(candidatePassword, this.password);
-};
-
-// ===== REMOVER SENHA AO CONVERTER PARA JSON =====
-userSchema.set('toJSON', {
-    transform: function(doc, ret) {
-        delete ret.password;
-        return ret;
+        required: true
     }
 });
 

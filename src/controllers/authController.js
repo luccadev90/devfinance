@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const bcrypt = require('bcryptjs'); // <-- ADICIONE ESTA LINHA
 
 // ============================================
 // TELA DE LOGIN
@@ -31,43 +32,6 @@ exports.showRegister = (req, res) => {
 };
 
 // ============================================
-// PROCESSAR LOGIN
-// ============================================
-exports.login = async (req, res) => {
-    try {
-        const { email, password } = req.body;
-
-        if (!email || !password) {
-            req.flash('error', 'Preencha todos os campos');
-            return res.redirect('/login');
-        }
-
-        const user = await User.findOne({ email: email.toLowerCase() });
-        if (!user) {
-            req.flash('error', 'Email ou senha incorretos');
-            return res.redirect('/login');
-        }
-
-        const isMatch = await user.comparePassword(password);
-        if (!isMatch) {
-            req.flash('error', 'Email ou senha incorretos');
-            return res.redirect('/login');
-        }
-
-        req.session.userId = user._id;
-        req.session.userName = user.name;
-        req.session.userEmail = user.email;
-
-        req.flash('success', `Bem-vindo(a) ${user.name}!`);
-        res.redirect('/');
-    } catch (error) {
-        console.error('❌ Erro no login:', error);
-        req.flash('error', 'Erro ao fazer login. Tente novamente.');
-        res.redirect('/login');
-    }
-};
-
-// ============================================
 // PROCESSAR CADASTRO
 // ============================================
 exports.register = async (req, res) => {
@@ -90,10 +54,14 @@ exports.register = async (req, res) => {
             return res.redirect('/register');
         }
 
+        // ===== CRIPTOGRAFAR SENHA AQUI =====
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+
         const user = new User({
             name: name.trim(),
             email: email.toLowerCase(),
-            password: password
+            password: hashedPassword // <-- SENHA JÁ CRIPTOGRAFADA
         });
 
         await user.save();
@@ -107,6 +75,43 @@ exports.register = async (req, res) => {
     }
 };
 
+// ============================================
+// PROCESSAR LOGIN
+// ============================================
+exports.login = async (req, res) => {
+    try {
+        const { email, password } = req.body;
+
+        if (!email || !password) {
+            req.flash('error', 'Preencha todos os campos');
+            return res.redirect('/login');
+        }
+
+        const user = await User.findOne({ email: email.toLowerCase() });
+        if (!user) {
+            req.flash('error', 'Email ou senha incorretos');
+            return res.redirect('/login');
+        }
+
+        // ===== COMPARAR SENHA =====
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
+            req.flash('error', 'Email ou senha incorretos');
+            return res.redirect('/login');
+        }
+
+        req.session.userId = user._id;
+        req.session.userName = user.name;
+        req.session.userEmail = user.email;
+
+        req.flash('success', `Bem-vindo(a) ${user.name}!`);
+        res.redirect('/');
+    } catch (error) {
+        console.error('❌ Erro no login:', error);
+        req.flash('error', 'Erro ao fazer login. Tente novamente.');
+        res.redirect('/login');
+    }
+};
 // ============================================
 // LOGOUT
 // ============================================

@@ -3,17 +3,26 @@ import express from 'express';
 const router = express.Router();
 import financeController from '../controllers/financeController.js';
 // import authController from '../controllers/authController.js';
-import * as authController from '../controllers/authController.js';
+// import * as authController from '../controllers/authController.js';
+import {
+    showLogin,
+    showRegister,
+    login,
+    register,
+    logout,
+    isAuthenticated,
+    addUserToLocals
+} from '../controllers/authController.js';
 import Finance from '../models/Finance.js';
 
 // ============================================
 // ROTAS PÚBLICAS (NÃO PRECISAM DE LOGIN)
 // ============================================
-router.get('/login', authController.showLogin);
-router.post('/login', authController.login);
-router.get('/register', authController.showRegister);
-router.post('/register', authController.register);
-router.get('/logout', authController.logout);
+router.get('/login', showLogin);
+router.post('/login', login);
+router.get('/register', showRegister);
+router.post('/register', register);
+router.get('/logout', logout);
 
 // Rota de health check
 router.get('/health', (req, res) => {
@@ -27,8 +36,8 @@ router.get('/health', (req, res) => {
 // ============================================
 // ROTAS PROTEGIDAS (PRECISAM DE LOGIN)
 // ============================================
-router.use(authController.isAuthenticated);
-router.use(authController.addUserToLocals);
+router.use(isAuthenticated);
+router.use(addUserToLocals);
 router.use(financeController.addCommonData);
 
 // Rotas principais

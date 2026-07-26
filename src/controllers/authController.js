@@ -41,6 +41,7 @@ export const login = async (req, res) => {
         console.log('📝 Tentativa de login:', email);
         console.log('📦 Session antes do login:', req.session?.id);
 
+
         if (!email || !password) {
             console.log('❌ Campos vazios');
             req.flash('error', 'Preencha todos os campos');
@@ -50,6 +51,7 @@ export const login = async (req, res) => {
         const user = await User.findOne({ email: email.toLowerCase() });
         if (!user) {
             console.log('❌ Usuário não encontrado:', email);
+            console.log('Usuário não encontrado:', email); // <-- L
             req.flash('error', 'Email ou senha incorretos');
             return res.redirect('/login');
         }

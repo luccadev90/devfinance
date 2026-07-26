@@ -164,13 +164,17 @@ export const register = async (req, res) => {
 // LOGOUT
 // ============================================
 export const logout = (req, res) => {
-    console.log('🚪 LOGOUT chamado!'); // <-- ADICIONE ESTA LINHA
-    console.log('🆔 Usuário antes do logout:', req.session.userId);
+    console.log('🚪 ===== LOGOUT CHAMADO =====');
+    console.log('📦 Session ID:', req.session?.id);
+    console.log('🆔 userId:', req.session?.userId);
+    console.log('👤 userName:', req.session?.userName);
+
     req.session.destroy((err) => {
         if (err) {
             console.error('❌ Erro ao fazer logout:', err);
         }
-        console.log('👋 Logout realizado');
+        console.log('👋 Logout realizado com sucesso!');
+        console.log('📍 Redirecionando para /login');
         res.redirect('/login');
     });
 };

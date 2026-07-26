@@ -225,9 +225,12 @@
                                     <hr class="dropdown-divider">
                                 </li>
                                 <li>
-                                    <a class="dropdown-item text-danger" href="/logout">
-                                        <i class="bi bi-box-arrow-right"></i> Sair
-                                    </a>
+                                <!-- DEPOIS: -->
+                                <a class="dropdown-item text-danger" href="#"
+                                    onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
+                                    <i class="bi bi-box-arrow-right"></i> Sair
+                                </a>
+                                <form id="logout-form" action="/logout" method="POST" style="display: none;"></form>
                                 </li>
                             </ul>
                         </li>

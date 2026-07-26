@@ -22,7 +22,7 @@ router.get('/login', showLogin);
 router.post('/login', login);
 router.get('/register', showRegister);
 router.post('/register', register);
-router.get('/logout', logout);
+router.post('/logout', logout);
 
 // Rota de health check
 router.get('/health', (req, res) => {

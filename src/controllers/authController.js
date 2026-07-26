@@ -8,7 +8,7 @@ import User from '../models/User.js';
 // TELA DE LOGIN
 // ============================================
 export const showLogin = (req, res) => {
-    console.log('📝 Tentativa de login:', req.body.email);
+   
     if (req.session && req.session.userId) {
         console.log('👤 Usuário já logado, redirecionando para dashboard');
         return res.redirect('/');

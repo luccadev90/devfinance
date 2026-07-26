@@ -3,7 +3,7 @@
 // require('colors');
 import mongoose from 'mongoose';
 import 'dotenv/config';
-import 'colors'
+
 
 const MONGODB_URI = process.env.MONGODB_URI
 

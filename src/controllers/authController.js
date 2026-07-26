@@ -1,9 +1,14 @@
+// No início do arquivo
+console.log('🔧 AuthController carregado!');
+
+
 // const User = require('../models/User');
 import User from '../models/User.js';
 // ============================================
 // TELA DE LOGIN
 // ============================================
 export const showLogin = (req, res) => {
+    console.log('📝 Tentativa de login:', req.body.email);
     if (req.session && req.session.userId) {
         console.log('👤 Usuário já logado, redirecionando para dashboard');
         return res.redirect('/');

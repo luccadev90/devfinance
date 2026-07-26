@@ -1,0 +1,97 @@
+<%- include('partials/header', { title: title }) %>
+
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card shadow">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0">
+                    <i class="bi bi-pencil"></i> Editar Transação
+                </h5>
+            </div>
+            <div class="card-body">
+                <form action="/edit/<%= finance.id %>?_method=PUT" method="POST">
+                    <!-- Descrição -->
+                    <div class="mb-3">
+                        <label for="description" class="form-label fw-bold">
+                            Descrição <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" class="form-control" id="description" name="description" 
+                               value="<%= finance.description %>" required>
+                    </div>
+
+                    <!-- Valor -->
+                    <div class="mb-3">
+                        <label for="amount" class="form-label fw-bold">
+                            Valor <span class="text-danger">*</span>
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text">R$</span>
+                            <input type="number" class="form-control amount-input" id="amount" name="amount" 
+                                   value="<%= finance.amount %>" step="0.01" min="0.01" required>
+                        </div>
+                    </div>
+
+                    <!-- Tipo e Status -->
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="type" class="form-label fw-bold">
+                                Tipo <span class="text-danger">*</span>
+                            </label>
+                            <select class="form-select" id="type" name="type" required>
+                                <option value="income" <%= finance.type === 'income' ? 'selected' : '' %>>
+                                    Receita
+                                </option>
+                                <option value="expense" <%= finance.type === 'expense' ? 'selected' : '' %>>
+                                    Despesa
+                                </option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="status" class="form-label fw-bold">
+                                Status <span class="text-danger">*</span>
+                            </label>
+                            <select class="form-select" id="status" name="status" required>
+                                <option value="pending" <%= finance.status === 'pending' ? 'selected' : '' %>>
+                                    Pendente
+                                </option>
+                                <option value="paid" <%= finance.status === 'paid' ? 'selected' : '' %>>
+                                    Pago
+                                </option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Data -->
+                    <div class="mb-3">
+                        <label for="date" class="form-label fw-bold">Data</label>
+                        <input type="date" class="form-control" id="date" name="date" 
+                               value="<%= finance.date %>">
+                    </div>
+
+                    <!-- Info extra -->
+                    <div class="alert alert-info small">
+                        <i class="bi bi-info-circle"></i>
+                        Criado em: <%= new Date(finance.createdAt).toLocaleString('pt-BR') %>
+                        <% if (finance.updatedAt) { %>
+                            <br>
+                            <i class="bi bi-pencil"></i>
+                            Atualizado em: <%= new Date(finance.updatedAt).toLocaleString('pt-BR') %>
+                        <% } %>
+                    </div>
+
+                    <!-- Botões -->
+                    <div class="d-flex gap-2 justify-content-end mt-3">
+                        <a href="/" class="btn btn-secondary">
+                            <i class="bi bi-x-circle"></i> Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle"></i> Atualizar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<%- include('partials/footer') %>

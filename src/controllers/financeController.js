@@ -1,0 +1,840 @@
+// const Finance = require('../models/Finance');
+import Finance from '../models/Finance.js';
+import { formatMoney , toNumber} from '../utils/moneyUtils.js';
+
+// ============================================
+// FUNÇÕES AUXILIARES
+// ============================================
+
+// Calcular balanços a partir dos dados
+export const calculateBalances = (finances) => {
+    let totalIncome = 0;
+    let totalExpense = 0;
+    let pendingIncome = 0;
+    let pendingExpense = 0;
+    let paidIncome = 0;
+    let paidExpense = 0;
+
+    finances.forEach(finance => {
+        const amount = toNumber(finance.amount);
+        
+        if (finance.type === 'income') {
+            totalIncome += amount;
+            if (finance.status === 'paid') {
+                paidIncome += amount;
+            } else {
+                pendingIncome += amount;
+            }
+        } else {
+            totalExpense += amount;
+            if (finance.status === 'paid') {
+                paidExpense += amount;
+            } else {
+                pendingExpense += amount;
+            }
+        }
+    });
+    // Retorna tanto os valores numéricos quanto os formatados
+    return {
+        totalIncome,
+        totalExpense,
+        pendingIncome,
+        pendingExpense,
+        paidIncome,
+        paidExpense,
+        balance: totalIncome - totalExpense,
+        pendingBalance: pendingIncome - pendingExpense,
+        paidBalance: paidIncome - paidExpense,
+
+
+        // Valores formatados (para exibição)
+        totalIncomeFormatted: formatMoney(totalIncome),
+        totalExpenseFormatted: formatMoney(totalExpense),
+        pendingIncomeFormatted: formatMoney(pendingIncome),
+        pendingExpenseFormatted: formatMoney(pendingExpense),
+        paidIncomeFormatted: formatMoney(paidIncome),
+        paidExpenseFormatted: formatMoney(paidExpense),
+        balanceFormatted: formatMoney(totalIncome - totalExpense),
+        pendingBalanceFormatted: formatMoney(pendingIncome - pendingExpense),
+        paidBalanceFormatted: formatMoney(paidIncome - paidExpense)
+    };
+};
+
+// ============================================
+// MIDDLEWARES
+// ============================================
+
+// Adiciona dados comuns a todas as views
+export const addCommonData = async (req, res, next) => {
+    try {
+        const totalItems = await Finance.countDocuments();
+        res.locals.totalItems = totalItems;
+        next();
+    } catch (error) {
+        console.error('Erro ao contar documentos:', error);
+        res.locals.totalItems = 0;
+        next();
+    }
+};
+
+// ============================================
+// CONTROLADORES - ROTAS PRINCIPAIS
+// ============================================
+
+// GET / - Listar finanças com filtro mensal e saldo acumulado REAL
+export const getFinances = async (req, res) => {
+    try {
+        const userId = req.session.userId;
+        
+        const statusFilter = req.query.status || 'all';
+        const typeFilter = req.query.type || 'all';
+        const monthFilter = req.query.month || 'current';
+        const yearFilter = req.query.year || new Date().getFullYear();
+
+        let selectedMonth, selectedYear;
+        let isCurrentMonth = false;
+        
+        if (monthFilter === 'current') {
+            const now = new Date();
+            selectedMonth = now.getMonth() + 1;
+            selectedYear = now.getFullYear();
+            isCurrentMonth = true;
+        } else {
+            selectedMonth = parseInt(monthFilter);
+            selectedYear = parseInt(yearFilter);
+            isCurrentMonth = false;
+        }
+
+        // ===== BUSCAR TODAS AS TRANSAÇÕES DO USUÁRIO =====
+        const allTransactions = await Finance.find({ userId: userId })
+            .sort({ year: 1, month: 1, date: 1 })
+            .lean();
+
+        // ===== CALCULAR SALDO ACUMULADO REAL (MÊS A MÊS) =====
+        let accumulatedBalance = 0;
+        let monthBalances = [];
+
+        const monthGroups = {};
+        allTransactions.forEach(t => {
+            if (t.month && t.year) {
+                const key = `${t.year}-${t.month}`;
+                if (!monthGroups[key]) {
+                    monthGroups[key] = {
+                        year: t.year,
+                        month: t.month,
+                        income: 0,
+                        expense: 0,
+                        balance: 0,
+                        transactions: []
+                    };
+                }
+                if (t.type === 'income') {
+                    monthGroups[key].income += t.amount;
+                } else {
+                    monthGroups[key].expense += t.amount;
+                }
+                monthGroups[key].transactions.push(t);
+            }
+        });
+
+        const sortedMonths = Object.keys(monthGroups).sort();
+        let runningBalance = 0;
+
+        sortedMonths.forEach(key => {
+            const month = monthGroups[key];
+            month.balance = month.income - month.expense;
+            runningBalance += month.balance;
+            month.accumulatedBalance = runningBalance;
+            monthBalances.push(month);
+        });
+
+        // ===== SALDO ACUMULADO ATÉ O MÊS SELECIONADO =====
+        let accumulatedBalanceUpToMonth = 0;
+        let accumulatedIncomeUpToMonth = 0;
+        let accumulatedExpenseUpToMonth = 0;
+
+        const monthsUpToSelected = monthBalances.filter(m => 
+            m.year < selectedYear || (m.year === selectedYear && m.month <= selectedMonth)
+        );
+
+        monthsUpToSelected.forEach(m => {
+            accumulatedIncomeUpToMonth += m.income;
+            accumulatedExpenseUpToMonth += m.expense;
+            accumulatedBalanceUpToMonth += m.balance;
+        });
+
+        // ===== SALDO DO MÊS ANTERIOR =====
+        const previousMonthData = monthBalances.filter(m => 
+            m.year < selectedYear || (m.year === selectedYear && m.month < selectedMonth)
+        );
+        const previousMonth = previousMonthData[previousMonthData.length - 1];
+        const previousMonthBalance = previousMonth ? previousMonth.balance : 0;
+        const previousMonthAccumulated = previousMonth ? previousMonth.accumulatedBalance : 0;
+
+        // ===== FILTRAR TRANSAÇÕES DO MÊS SELECIONADO =====
+        let filteredByMonth = allTransactions.filter(t => 
+            t.month === selectedMonth && t.year === selectedYear
+        );
+
+        // ===== PENDÊNCIAS DE MESES ANTERIORES =====
+        let pendingFromPrevious = [];
+        if (isCurrentMonth) {
+            pendingFromPrevious = allTransactions.filter(t => 
+                t.status === 'pending' && 
+                (t.year < selectedYear || (t.year === selectedYear && t.month < selectedMonth))
+            );
+        }
+
+        // ===== COMBINAR =====
+        let finances = [...pendingFromPrevious, ...filteredByMonth];
+
+        // ===== APLICAR FILTROS =====
+        if (statusFilter !== 'all') {
+            finances = finances.filter(t => t.status === statusFilter);
+        }
+        if (typeFilter !== 'all') {
+            finances = finances.filter(t => t.type === typeFilter);
+        }
+
+        // ============================================
+        // ✅ AQUI É ONDE VOCÊ PRECISA COLOCAR O CÓDIGO DE FORMATAÇÃO
+        // (DEPOIS que todas as variáveis já foram definidas)
+        // ============================================
+
+        // ===== CALCULAR BALANÇOS DO MÊS =====
+        const balances = calculateBalances(finances);
+
+        // ===== MESES DISPONÍVEIS =====
+        const availableMonths = monthBalances.map(m => ({
+            year: m.year,
+            month: m.month,
+            count: m.transactions.length,
+            balance: m.balance,
+            accumulated: m.accumulatedBalance
+        })).sort((a, b) => {
+            if (a.year !== b.year) return b.year - a.year;
+            return b.month - a.month;
+        });
+
+        const now = new Date();
+        const currentMonth = now.getMonth() + 1;
+        const currentYear = now.getFullYear();
+
+        // ===== TOTAL DE PENDÊNCIAS =====
+        const totalPending = allTransactions
+            .filter(t => t.status === 'pending' && (t.year < selectedYear || (t.year === selectedYear && t.month <= selectedMonth)))
+            .reduce((sum, t) => sum + t.amount, 0);
+
+        // ===== DADOS DO MÊS ATUAL =====
+        const currentMonthData = monthBalances.find(m => 
+            m.year === selectedYear && m.month === selectedMonth
+        );
+
+        const currentMonthIncome = currentMonthData ? currentMonthData.income : 0;
+        const currentMonthExpense = currentMonthData ? currentMonthData.expense : 0;
+        const currentMonthBalance = currentMonthData ? currentMonthData.balance : 0;
+
+        // ============================================
+        // ✅ AQUI: CRIAR VERSÕES FORMATADAS (DEPOIS que todas as variáveis existem)
+        // ============================================
+        
+        // Depois de calcular os balances, adicione versões formatadas
+        const balancesFormatted = {
+            totalIncome: formatMoney(balances.totalIncome),
+            totalExpense: formatMoney(balances.totalExpense),
+            pendingIncome: formatMoney(balances.pendingIncome),
+            pendingExpense: formatMoney(balances.pendingExpense),
+            paidIncome: formatMoney(balances.paidIncome),
+            paidExpense: formatMoney(balances.paidExpense),
+            balance: formatMoney(balances.balance),
+            pendingBalance: formatMoney(balances.pendingBalance),
+            paidBalance: formatMoney(balances.paidBalance),
+            // ✅ CORRIGIDO: Usar a variável que foi calculada
+            accumulatedBalance: formatMoney(accumulatedBalanceUpToMonth)
+        };
+        
+        // Formatar também os dados do mês
+        const currentMonthDataFormatted = {
+            income: formatMoney(currentMonthIncome),
+            expense: formatMoney(currentMonthExpense),
+            balance: formatMoney(currentMonthBalance)
+        };
+        
+        // No getFinances, depois de calcular accumulatedBalanceUpToMonth
+        const accumulatedBalanceFormatted = formatMoney(accumulatedBalanceUpToMonth);   
+
+        // ============================================
+        // ✅ AQUI: RENDERIZAR COM TODOS OS DADOS
+        // ============================================
+
+        // ===== RENDERIZAR =====
+        res.render('index', {
+            // Dados numéricos (para cálculos no EJS, se precisar)
+            title: 'DevFinance - Dashboard',
+            finances: finances,
+            balances: balances, // Mantém o original para cálculos
+            balancesFormatted: balancesFormatted, // ✅ Versão formatada
+            totalItems: allTransactions.length,
+            filteredItems: finances.length,
+            statusFilter: statusFilter,
+            typeFilter: typeFilter,
+            monthFilter: monthFilter,
+            yearFilter: yearFilter,
+            selectedMonth: selectedMonth,
+            selectedYear: selectedYear,
+            isCurrentMonth: isCurrentMonth,
+            availableMonths: availableMonths,
+            currentMonth: currentMonth,
+            currentYear: currentYear,
+            
+            // ===== DADOS DE SALDO ACUMULADO REAL =====
+            accumulatedBalance: accumulatedBalanceUpToMonth,
+            accumulatedIncome: accumulatedIncomeUpToMonth,
+            accumulatedExpense: accumulatedExpenseUpToMonth,
+            previousMonthBalance: previousMonthBalance,
+            previousMonthAccumulated: previousMonthAccumulated,
+            totalPending: totalPending,
+            
+            // ===== DADOS DO MÊS ATUAL =====
+            currentMonthIncome: currentMonthIncome,
+            currentMonthExpense: currentMonthExpense,
+            currentMonthBalance: currentMonthBalance,
+            
+            // ====== Dados adicionais formatados =======
+            currentMonthDataFormatted: currentMonthDataFormatted, // ✅ Versão formatada
+            accumulatedBalanceFormatted: accumulatedBalanceFormatted, // ✅ ADICIONE ESTA
+            previousMonthBalanceFormatted: formatMoney(previousMonthBalance),// ✅ Versão formatada
+            totalPendingFormatted: formatMoney(totalPending),// ✅ Versão formatada
+
+            // ===== TODOS OS MESES COM SALDO =====
+            monthBalances: monthBalances
+        });
+
+    } catch (error) {
+        console.error('❌ Erro:', error);
+        res.status(500).send(`
+            <h1>❌ Erro ao carregar dados</h1>
+            <p>${error.message}</p>
+            <pre>${error.stack}</pre>
+            <a href="/">Voltar</a>
+        `);
+    }
+};
+// GET /add - Mostrar formulário de adição
+export const showAddForm = (req, res) => {
+    res.render('add', {
+        title: 'Adicionar Finança'
+    });
+};
+
+// POST /add - Adicionar nova finança
+export const addFinance = async (req, res) => {
+    try {
+        const { description, amount, type, status, date } = req.body;
+        const userId = req.session.userId;
+
+        // Determinar data
+        let parsedDate;
+        let month, year;
+        
+        if (date) {
+            parsedDate = new Date(date);
+            // Verificar se a data é válida
+            if (isNaN(parsedDate.getTime())) {
+                parsedDate = new Date();
+            }
+        } else {
+            parsedDate = new Date();
+        }
+        
+        month = parsedDate.getMonth() + 1;
+        year = parsedDate.getFullYear();
+
+        console.log(`📝 Nova transação: ${description}, Data: ${parsedDate.toISOString().split('T')[0]}, Mês: ${month}/${year}`);
+
+        const newFinance = new Finance({
+            description: description.trim(),
+            amount: parseFloat(amount),
+            type: type || 'income',
+            status: status || 'pending',
+            date: date || parsedDate.toISOString().split('T')[0],
+            month: month,
+            year: year,
+            userId: userId
+        });
+
+        await newFinance.save();
+        console.log(`✅ Adicionado: ${newFinance.description} - ${month}/${year}`);
+        
+        // Redirecionar mantendo o filtro atual
+        const redirectUrl = req.query.redirect || '/';
+        res.redirect(redirectUrl);
+    } catch (error) {
+        console.error('❌ Erro ao adicionar finança:', error);
+        res.status(400).render('add', {
+            title: 'Adicionar Finança',
+            error: error.message
+        });
+    }
+};
+
+// GET /edit/:id - Mostrar formulário de edição
+export const showEditForm = async (req, res) => {
+    try {
+        const id = req.params.id;
+        const userId = req.session.userId;
+        
+        // Buscar apenas se for do usuário logado
+        const finance = await Finance.findOne({ _id: id, userId: userId });
+
+        if (!finance) {
+            return res.status(404).render('404', {
+                title: 'Finança não encontrada',
+                message: 'A finança que você procura não existe.'
+            });
+        }
+
+        res.render('edit', {
+            title: 'Editar Finança',
+            finance: finance
+        });
+    } catch (error) {
+        console.error('Erro ao buscar finança:', error);
+        res.status(404).render('404', {
+            title: 'Erro',
+            message: 'Finança não encontrada'
+        });
+    }
+};
+
+// PUT /edit/:id - Atualizar finança
+export const updateFinance = async (req, res) => {
+    try {
+        const id = req.params.id;
+        const userId = req.session.userId;
+        const { description, amount, type, status, date } = req.body;
+
+        // Se a data mudou, atualizar mês e ano
+        let month, year;
+        if (date) {
+            const parsedDate = new Date(date);
+            month = parsedDate.getMonth() + 1;
+            year = parsedDate.getFullYear();
+        }
+
+        const updateData = {
+            description: description.trim(),
+            amount: parseFloat(amount),
+            type: type || 'income',
+            status: status || 'pending',
+            date: date || new Date().toISOString().split('T')[0],
+            updatedAt: new Date()
+        };
+
+        if (month && year) {
+            updateData.month = month;
+            updateData.year = year;
+        }
+
+        const finance = await Finance.findOneAndUpdate(
+            { _id: id, userId: userId },
+            updateData,
+            { new: true, runValidators: true }
+        );
+
+        if (!finance) {
+            return res.status(404).render('404', {
+                title: 'Finança não encontrada',
+                message: 'A finança que você procura não existe.'
+            });
+        }
+
+        console.log(`✏️ Atualizado: ${finance.description} - ${finance.month}/${finance.year}`);
+        res.redirect('/');
+    } catch (error) {
+        console.error('❌ Erro ao atualizar finança:', error);
+        res.status(400).send('Erro ao atualizar. Verifique os dados.');
+    }
+};
+
+
+// DELETE /delete/:id - Excluir finança
+export const deleteFinance = async (req, res) => {
+    try {
+        const id = req.params.id;
+        const userId = req.session.userId;
+
+        // Excluir apenas se for do usuário logado
+        const finance = await Finance.findOneAndDelete({ _id: id, userId: userId });
+
+        if (!finance) {
+            return res.status(404).render('404', {
+                title: 'Finança não encontrada',
+                message: 'A finança que você procura não existe.'
+            });
+        }
+
+        console.log(`🗑️ Excluído: ${finance.description}`);
+        res.redirect('/');
+    } catch (error) {
+        console.error('Erro ao excluir finança:', error);
+        res.status(500).send('Erro ao excluir. Tente novamente.');
+    }
+};
+// ============================================
+// CONTROLADORES - ROTAS DE API
+// ============================================
+
+// POST /toggle/:id - Alternar status
+export const toggleStatus = async (req, res) => {
+    try {
+        const id = req.params.id;
+        const userId = req.session.userId;
+        
+        console.log('🔄 ID recebido:', id);
+        
+        // Buscar apenas se for do usuário logado
+        const finance = await Finance.findOne({ _id: id, userId: userId });
+
+        if (!finance) {
+            return res.status(404).json({ error: 'Finança não encontrada' });
+        }
+
+        const newStatus = finance.status === 'paid' ? 'pending' : 'paid';
+        finance.status = newStatus;
+        finance.updatedAt = new Date();
+        
+        await finance.save();
+
+        console.log(`✅ Status alternado: ${finance.description} -> ${finance.status}`);
+
+        res.json({
+            success: true,
+            status: finance.status,
+            message: `Status alterado para ${finance.status === 'paid' ? 'Pago' : 'Pendente'}`
+        });
+    } catch (error) {
+        console.error('❌ Erro ao alternar status:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao alternar status: ' + error.message
+        });
+    }
+};
+
+// GET /api/stats - Estatísticas do usuário logado
+export const getStats = async (req, res) => {
+    try {
+        const userId = req.session.userId;
+        const finances = await Finance.find({ userId: userId }).lean();
+        const balances = calculateBalances(finances);
+        
+        res.json({
+            ...balances,
+             formatted: {
+                totalIncome: formatMoney(balances.totalIncome),
+                totalExpense: formatMoney(balances.totalExpense),
+                balance: formatMoney(balances.balance),
+                pendingBalance: formatMoney(balances.pendingBalance),
+                paidBalance: formatMoney(balances.paidBalance)
+            },
+            totalTransactions: finances.length,
+        });
+    } catch (error) {
+        console.error('Erro ao buscar estatísticas:', error);
+        res.status(500).json({ error: 'Erro ao buscar estatísticas' });
+    }
+};
+
+// GET /api/export - Exportar dados do usuário
+export const exportData = async (req, res) => {
+    try {
+        const userId = req.session.userId;
+        const finances = await Finance.find({ userId: userId }).lean();
+        const stats = calculateBalances(finances);
+        
+        const data = {
+            finances: finances,
+            stats: stats,
+            exportedAt: new Date().toISOString(),
+            totalRecords: finances.length
+        };
+        
+        res.json(data);
+    } catch (error) {
+        console.error('Erro ao exportar dados:', error);
+        res.status(500).json({ error: 'Erro ao exportar dados' });
+    }
+};
+
+
+// ============================================
+// ROTA DE TESTE
+// ============================================
+
+// GET /test-data - Adicionar dados de teste para o usuário
+export const addTestData = async (req, res) => {
+    try {
+        const userId = req.session.userId;
+        
+        const testData = [
+            { description: 'Salario Mensal', amount: 5000, type: 'income', status: 'paid' },
+            { description: 'Aluguel', amount: 1200, type: 'expense', status: 'pending' },
+            { description: 'Freelance', amount: 800, type: 'income', status: 'pending' },
+            { description: 'Supermercado', amount: 450, type: 'expense', status: 'paid' },
+            { description: 'Internet', amount: 100, type: 'expense', status: 'paid' },
+            { description: 'Energia', amount: 200, type: 'expense', status: 'pending' },
+            { description: 'Venda de Curso', amount: 350, type: 'income', status: 'paid' }
+        ];
+
+        const count = await Finance.countDocuments({ userId: userId });
+        if (count > 0) {
+            req.flash('info', 'Você já possui dados cadastrados');
+            return res.redirect('/');
+        }
+
+        const dataToInsert = testData.map(item => ({
+            ...item,
+            userId: userId
+        }));
+
+        await Finance.insertMany(dataToInsert);
+        console.log(`🧪 Dados de teste adicionados: ${testData.length} registros`);
+        res.redirect('/');
+    } catch (error) {
+        console.error('Erro ao adicionar dados de teste:', error);
+        res.status(500).send('Erro ao adicionar dados de teste');
+    }
+};
+
+
+// ============================================
+// EXPORTAR PARA PDF
+// ============================================
+
+import PDFDocument from 'pdfkit';
+
+// ============================================
+// EXPORTAR PARA PDF - VERSÃO CORRIGIDA
+// ============================================
+
+import fs from 'fs';
+import path from 'path';
+
+export const exportPDF = async (req, res) => {
+    try {
+        console.log('📄 Iniciando geração de PDF...');
+        
+        const userId = req.session.userId;
+        console.log('🆔 Usuário ID:', userId);
+        
+        const finances = await Finance.find({ userId: userId }).sort({ createdAt: -1 });
+        console.log('📊 Total de registros:', finances.length);
+        
+        if (finances.length === 0) {
+            console.log('⚠️ Nenhum dado para exportar');
+            req.flash('info', 'Não há dados para exportar em PDF');
+            return res.redirect('/');
+        }
+        
+        const balances = calculateBalances(finances);
+        console.log('📊 Balanços calculados');
+        
+        // Criar documento PDF
+        const doc = new PDFDocument({
+            size: 'A4',
+            margin: 50,
+            info: {
+                Title: 'Relatório de Finanças',
+                Author: 'DevFinance',
+                Subject: 'Relatório Financeiro'
+            }
+        });
+
+        // Configurar resposta
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename=relatorio-financas-${new Date().toISOString().split('T')[0]}.pdf`);
+        
+        doc.pipe(res);
+
+        console.log('📄 Configurando cabeçalho do PDF...');
+
+        // ===== CABEÇALHO =====
+        doc
+            .fontSize(22)
+            .font('Helvetica-Bold')
+            .fillColor('#2c3e50')
+            .text('RELATORIO DE FINANCAS', { align: 'center' })
+            .moveDown(0.5);
+
+        doc
+            .fontSize(10)
+            .font('Helvetica')
+            .fillColor('#7f8c8d')
+            .text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, { align: 'center' })
+            .moveDown(1.5);
+
+        // Linha separadora
+        doc
+            .moveTo(50, doc.y)
+            .lineTo(545, doc.y)
+            .stroke('#3498db')
+            .moveDown(1);
+
+        // ===== RESUMO =====
+        doc
+            .fontSize(14)
+            .font('Helvetica-Bold')
+            .fillColor('#2c3e50')
+            .text('RESUMO FINANCEIRO', { underline: true })
+            .moveDown(0.5);
+
+        const summaryData = [
+            { label: 'Total de Receitas', value: `R$ ${formatMoney(balances.totalIncome)}`, color: '#27ae60' },
+            { label: 'Total de Despesas', value: `R$ ${formatMoney(balances.totalExpense)}`, color: '#e74c3c' },
+            { label: 'Saldo Total', value: `R$ ${formatMoney(balances.balance)}`, color: balances.balance >= 0 ? '#2980b9' : '#e74c3c' },
+            { label: 'Total de Transacoes', value: `${finances.length}`, color: '#8e44ad' }
+        ];
+
+        const col1X = 50;
+        const col2X = 300;
+        let yPos = doc.y;
+
+        summaryData.forEach((item, index) => {
+            const xPos = index < 2 ? col1X : col2X;
+            const yOffset = index < 2 ? index * 35 : (index - 2) * 35;
+            
+            doc
+                .fontSize(9)
+                .font('Helvetica')
+                .fillColor('#34495e')
+                .text(item.label, xPos, yPos + yOffset);
+            
+            doc
+                .fontSize(11)
+                .font('Helvetica-Bold')
+                .fillColor(item.color)
+                .text(item.value, xPos, yPos + yOffset + 14);
+        });
+
+        doc.moveDown(3);
+
+        // ===== LISTA DE TRANSAÇÕES =====
+        doc
+            .fontSize(14)
+            .font('Helvetica-Bold')
+            .fillColor('#2c3e50')
+            .text('LISTA DE TRANSACOES', { underline: true })
+            .moveDown(0.5);
+
+        const tableTop = doc.y;
+        const colWidths = [30, 150, 70, 70, 70, 70];
+        const headers = ['#', 'Descricao', 'Tipo', 'Valor', 'Data', 'Status'];
+
+        // Fundo do cabeçalho
+        doc
+            .rect(50, tableTop - 5, 495, 25)
+            .fill('#3498db');
+
+        // Texto do cabeçalho
+        doc.fillColor('#ffffff');
+        let currentX = 50;
+        headers.forEach((header, i) => {
+            doc
+                .fontSize(9)
+                .font('Helvetica-Bold')
+                .text(header, currentX, tableTop, { width: colWidths[i], align: 'center' });
+            currentX += colWidths[i];
+        });
+
+        // Dados da tabela
+        let rowY = tableTop + 25;
+        doc.fillColor('#2c3e50');
+
+        finances.forEach((finance, index) => {
+            // Verificar se precisa de nova página
+            if (rowY > 700) {
+                doc.addPage();
+                rowY = 50;
+                
+                // Reimprimir cabeçalho na nova página
+                doc.rect(50, rowY - 5, 495, 25).fill('#3498db');
+                doc.fillColor('#ffffff');
+                let currentX2 = 50;
+                headers.forEach((header, i) => {
+                    doc
+                        .fontSize(9)
+                        .font('Helvetica-Bold')
+                        .text(header, currentX2, rowY, { width: colWidths[i], align: 'center' });
+                    currentX2 += colWidths[i];
+                });
+                rowY += 25;
+                doc.fillColor('#2c3e50');
+            }
+
+            // Cor alternada para linhas
+            if (index % 2 === 0) {
+                doc.rect(50, rowY - 3, 495, 18).fill('#f8f9fa');
+            }
+
+            const rowData = [
+                (index + 1).toString(),
+                finance.description.length > 20 ? finance.description.substring(0, 20) + '...' : finance.description,
+                finance.type === 'income' ? 'Receita' : 'Despesa',
+                `R$ ${formatMoney(finance.amount)}`,
+                new Date(finance.date).toLocaleDateString('pt-BR'),
+                finance.status === 'paid' ? 'Pago' : 'Pendente'
+            ];
+
+            doc.fillColor('#2c3e50');
+            let currentX3 = 50;
+            rowData.forEach((text, i) => {
+                doc
+                    .fontSize(8)
+                    .font('Helvetica')
+                    .text(text, currentX3, rowY, { 
+                        width: colWidths[i], 
+                        align: i === 0 ? 'center' : 'left' 
+                    });
+                currentX3 += colWidths[i];
+            });
+
+            rowY += 20;
+        });
+
+        // ===== RODAPÉ =====
+        doc
+            .fontSize(9)
+            .font('Helvetica')
+            .fillColor('#7f8c8d')
+            .text(`Total de registros: ${finances.length}`, 50, 780, { align: 'center' })
+            .text('Relatorio gerado automaticamente pelo DevFinance', 50, 795, { align: 'center' });
+
+        console.log('📄 Finalizando PDF...');
+        doc.end();
+
+    } catch (error) {
+        console.error('❌ Erro ao gerar PDF:', error);
+        console.error('❌ Stack:', error.stack);
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao gerar PDF: ' + error.message
+        });
+    }
+};
+
+export default {
+    calculateBalances,
+    addCommonData, 
+    getFinances, 
+    showAddForm,
+    addFinance, 
+    showEditForm,  
+    updateFinance,
+    deleteFinance, 
+    toggleStatus, 
+    getStats, 
+    exportData, 
+    addTestData,
+    exportPDF
+}

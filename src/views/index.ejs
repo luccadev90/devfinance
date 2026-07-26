@@ -1,0 +1,764 @@
+<%- include('partials/header', { title: title }) %>
+
+    <div class="container mt-4">
+
+        <!-- ===== CARD DE SALDO ACUMULADO (COFRINHO) ===== -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card shadow-sm" style="border-left: 5px solid #ffc107;">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center flex-wrap">
+                            <div>
+                                <h6 class="card-subtitle mb-2 text-muted">
+                                    <i class="bi bi-piggy-bank"></i> Cofrinho - Saldo Acumulado
+                                    <span class="badge bg-warning text-dark ms-2">
+                                        Até <%= String(selectedMonth).padStart(2, '0' ) %>/<%= selectedYear %>
+                                    </span>
+                                </h6>
+                                <!-- ✅ CORRIGIDO: Usar accumulatedBalance em vez de balancesFormatted.balance -->
+                                <h3 class="mb-0 <%= accumulatedBalance >= 0 ? 'text-success' : 'text-danger' %>">
+                                    <%= formatMoney(accumulatedBalance) %>
+                                </h3>
+                                <div class="mt-2">
+                                    <span class="badge bg-success me-2">
+                                        <i class="bi bi-arrow-up"></i> Receitas: <%= balancesFormatted ?
+                                            balancesFormatted.totalIncome : '0,00' %>
+                                    </span>
+                                    <span class="badge bg-danger me-2">
+                                        <i class="bi bi-arrow-down"></i> Despesas: <%= balancesFormatted ?
+                                            balancesFormatted.totalExpense : '0,00' %>
+                                    </span>
+                                    <span class="badge bg-info">
+                                        <i class="bi bi-clock"></i> Pendentes: <%= formatMoney(balancesFormatted.pendingBalance)
+                                            %>
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="text-end">
+                                <small class="text-muted d-block">
+                                    <i class="bi bi-arrow-left"></i> Saldo mês anterior:
+                                    <strong class="<%= previousMonthBalance >= 0 ? 'text-success' : 'text-danger' %>">
+                                        <%= formatMoney(previousMonthBalance) %>
+                                    </strong>
+                                </small>
+        
+                                <small class="text-muted d-block">
+                                    <i class="bi bi-arrow-right"></i> Acumulado anterior:
+                                    <strong class="<%= previousMonthAccumulated >= 0 ? 'text-success' : 'text-danger' %>">
+                                        <%= formatMoney(previousMonthAccumulated) %>
+                                    </strong>
+                                </small>
+        
+                                <% if (isCurrentMonth) { %>
+                                    <small class="text-muted">
+                                        <i class="bi bi-info-circle"></i>
+                                        <% if (accumulatedBalance>= 0) { %>
+                                            ✅ Saldo positivo: dinheiro disponível
+                                            <% } else { %>
+                                                ⚠️ Saldo negativo: dívida acumulada
+                                                <% } %>
+                                    </small>
+                                    <% } %>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== RESUMO DO MÊS ATUAL ===== -->
+        <div class="row mb-4 g-3">
+            <div class="col-md-4">
+                <div class="card bg-success text-white shadow-sm h-100">
+                    <div class="card-body text-center">
+                        <h6><i class="bi bi-arrow-up"></i> Receitas do Mês</h6>
+                        <h3> <%= currentMonthDataFormatted ? currentMonthDataFormatted.income : '0,00' %>
+                        </h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-danger text-white shadow-sm h-100">
+                    <div class="card-body text-center">
+                        <h6><i class="bi bi-arrow-down"></i> Despesas do Mês</h6>
+                        <h3> <%= currentMonthDataFormatted ? currentMonthDataFormatted.expense : '0,00' %>
+                        </h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div
+                    class="card <%= currentMonthBalance >= 0 ? 'bg-primary' : 'bg-warning text-dark' %> text-white shadow-sm h-100">
+                    <div class="card-body text-center">
+                        <h6><i class="bi bi-wallet2"></i> Saldo do Mês</h6>
+                        <h3> <%= formatMoney(currentMonthBalance + previousMonthBalance) %>
+                        </h3>
+                        <small>
+                            <% if (currentMonthBalance>= 0) { %>
+                                ✅ Sobrou dinheiro este mês
+                                <% } else { %>
+                                    ⚠️ Faltou dinheiro este mês
+                                    <% } %>
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== ABAS DO DASHBOARD ===== -->
+        <ul class="nav nav-tabs" id="dashboardTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="resumo-tab" data-bs-toggle="tab" data-bs-target="#resumo"
+                    type="button" role="tab" aria-selected="true">
+                    <i class="bi bi-speedometer2"></i> Resumo
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="transacoes-tab" data-bs-toggle="tab" data-bs-target="#transacoes"
+                    type="button" role="tab" aria-selected="false" tabindex="-1">
+                    <i class="bi bi-list-ul"></i> Transações
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="historico-tab" data-bs-toggle="tab" data-bs-target="#historico"
+                    type="button" role="tab" aria-selected="false" tabindex="-1">
+                    <i class="bi bi-clock-history"></i> Histórico Mensal
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="dashboardTabsContent">
+
+            <!-- ===== ABA 1: RESUMO ===== -->
+            <div class="tab-pane fade show active" id="resumo" role="tabpanel" aria-labelledby="resumo-tab">
+                <div class="row mb-4 g-3">
+                    <div class="col-12">
+                        <div class="card card-stats card-balance shadow-sm" style="border-left-color: #6f42c1;">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center flex-wrap">
+                                    <div>
+                                        <h6 class="card-subtitle mb-2 text-muted">
+                                            <i class="bi bi-calendar-event"></i>
+                                            Período:
+                                            <% const
+                                                monthNames=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+                                                const nomeMes=monthNames[(selectedMonth || 1) - 1]; %>
+                                                <strong>
+                                                    <%= nomeMes %> de <%= selectedYear || 2024 %>
+                                                </strong>
+                                                <% if (isCurrentMonth) { %>
+                                                    <span class="badge bg-success">Mês Atual</span>
+                                                    <% } else { %>
+                                                        <span class="badge bg-primary">Histórico</span>
+                                                        <% } %>
+                                        </h6>
+                                        <div>
+                                            <span class="badge bg-success me-2">
+                                                ✅ Pago: <%= balancesFormatted ? balancesFormatted.paidBalance
+                                                    : '0,00' %>
+                                            </span>
+                                            <span class="badge bg-warning text-dark">
+                                                ⏳ Pendente: <%= balancesFormatted ? balancesFormatted.pendingBalance
+                                                    : '0,00' %>
+                                            </span>
+                                            <span class="badge bg-info">
+                                                📊 Total: <%= finances ? finances.length : 0 %> transações
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div class="text-end">
+                                        <h5
+                                            class="mb-0 <%= (balances && balances.balance && balances.balance >= 0) ? 'text-success' : 'text-danger' %>">
+                                            Saldo do Mês: <%= balancesFormatted ? balancesFormatted.balance : '0,00'
+                                                %>
+                                        </h5>
+                                        <small class="text-muted">
+                                            <i class="bi bi-arrow-up-circle text-success"></i>
+                                            Receitas: <%= balancesFormatted ? balancesFormatted.totalIncome : '0,00'
+                                                %>
+                                                <i class="bi bi-arrow-down-circle text-danger ms-2"></i>
+                                                Despesas: <%= balancesFormatted ? balancesFormatted.totalExpense
+                                                    : '0,00' %>
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-3 col-sm-6">
+                        <div class="card card-stats card-income shadow-sm h-100">
+                            <div class="card-body">
+                                <h6 class="card-subtitle mb-2 text-muted">
+                                    <i class="bi bi-arrow-up-circle text-success"></i> Receitas
+                                </h6>
+                                <h4 class="card-title text-success mb-2"> <%= balancesFormatted ?
+                                        balancesFormatted.totalIncome : '0,00' %>
+                                </h4>
+                                <div class="d-flex justify-content-between small">
+                                    <span class="text-muted">
+                                        <i class="bi bi-check-circle text-success"></i> Pago: <%= balancesFormatted ?
+                                            balancesFormatted.paidIncome : '0,00' %>
+                                    </span>
+                                    <span class="text-muted">
+                                        <i class="bi bi-clock text-warning"></i> Pendente: <%= balancesFormatted ?
+                                            balancesFormatted.pendingIncome : '0,00' %>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-3 col-sm-6">
+                        <div class="card card-stats card-expense shadow-sm h-100">
+                            <div class="card-body">
+                                <h6 class="card-subtitle mb-2 text-muted">
+                                    <i class="bi bi-arrow-down-circle text-danger"></i> Despesas
+                                </h6>
+                                <h4 class="card-title text-danger mb-2"> <%= balancesFormatted ?
+                                        balancesFormatted.totalExpense : '0,00' %>
+                                </h4>
+                                <div class="d-flex justify-content-between small">
+                                    <span class="text-muted">
+                                        <i class="bi bi-check-circle text-success"></i> Pago: <%= balancesFormatted ?
+                                            balancesFormatted.paidExpense : '0,00' %>
+                                    </span>
+                                    <span class="text-muted">
+                                        <i class="bi bi-clock text-warning"></i> Pendente: <%= balancesFormatted ?
+                                            balancesFormatted.pendingExpense : '0,00' %>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-3 col-sm-6">
+                        <div class="card card-stats card-balance shadow-sm h-100">
+                            <div class="card-body">
+                                <h6 class="card-subtitle mb-2 text-muted">
+                                    <i class="bi bi-wallet2"></i> Saldo do Mês
+                                </h6>
+                                <h4
+                                    class="card-title mb-2 <%= (balances && balances.balance && balances.balance >= 0) ? 'text-success' : 'text-danger' %>">
+                                    <%= balancesFormatted ? balancesFormatted.balance : '0,00' %>
+                                </h4>
+                                <div class="d-flex justify-content-between small">
+                                    <span class="text-muted">
+                                        <i class="bi bi-arrow-up-circle text-success"></i> Pago: <%=
+                                            balancesFormatted ? balancesFormatted.paidBalance : '0,00' %>
+                                    </span>
+                                    <span class="text-muted">
+                                        <i class="bi bi-arrow-down-circle text-danger"></i> Pendente: <%=
+                                            balancesFormatted ? balancesFormatted.pendingBalance : '0,00' %>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-3 col-sm-6">
+                        <div class="card card-stats card-paid shadow-sm h-100">
+                            <div class="card-body">
+                                <h6 class="card-subtitle mb-2 text-muted">
+                                    <i class="bi bi-list-ul"></i> Transações
+                                </h6>
+                                <h4 class="card-title text-primary mb-2">
+                                    <%= finances ? finances.length : 0 %>
+                                </h4>
+                                <div class="d-flex justify-content-between small">
+                                    <span class="text-muted">
+                                        <i class="bi bi-arrow-up text-success"></i> Receitas: <%= finances ?
+                                            finances.filter(f=> f.type === 'income').length : 0 %>
+                                    </span>
+                                    <span class="text-muted">
+                                        <i class="bi bi-arrow-down text-danger"></i> Despesas: <%= finances ?
+                                            finances.filter(f=> f.type === 'expense').length : 0 %>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== ABA 2: TRANSAÇÕES ===== -->
+            <div class="tab-pane fade" id="transacoes" role="tabpanel" aria-labelledby="transacoes-tab">
+
+                <!-- ===== FILTROS ===== -->
+                <div class="filter-section">
+                    <div class="row align-items-center g-2">
+                        <div class="col-md-12">
+                            <h5 class="mb-2">
+                                <i class="bi bi-funnel"></i> Filtrar Transações
+                                <span class="badge bg-primary ms-2">
+                                    <%= finances ? finances.length : 0 %> itens
+                                </span>
+                            </h5>
+                        </div>
+                        <div class="col-md-12">
+                            <form method="GET" action="/" class="row g-2">
+                                <div class="col-md-3">
+                                    <select name="month" class="form-select form-select-sm"
+                                        onchange="this.form.submit()">
+                                        <option value="current" <%=monthFilter==='current' ? 'selected' : '' %>>📅 Mês
+                                            Atual</option>
+                                        <% if (availableMonths && availableMonths.length> 0) { %>
+                                            <% availableMonths.forEach(function(m) { %>
+                                                <option value="<%= m.month %>" <%=(monthFilter==m.month &&
+                                                    yearFilter==m.year) ? 'selected' : '' %>>
+                                                    📆 <%= String(m.month).padStart(2, '0' ) %>/<%= m.year %>
+                                                            (<%= m.count %> itens | Saldo: <%= m.balance.toFixed(2)
+                                                                    %>)
+                                                </option>
+                                                <% }); %>
+                                                    <% } %>
+                                    </select>
+                                </div>
+                                <input type="hidden" name="year" value="<%= yearFilter %>">
+                                <div class="col-md-3">
+                                    <select name="status" class="form-select form-select-sm"
+                                        onchange="this.form.submit()">
+                                        <option value="all" <%=statusFilter==='all' ? 'selected' : '' %>>Todos os Status
+                                        </option>
+                                        <option value="pending" <%=statusFilter==='pending' ? 'selected' : '' %>>⏳
+                                            Pendente</option>
+                                        <option value="paid" <%=statusFilter==='paid' ? 'selected' : '' %>>✅ Pago
+                                        </option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <select name="type" class="form-select form-select-sm"
+                                        onchange="this.form.submit()">
+                                        <option value="all" <%=typeFilter==='all' ? 'selected' : '' %>>Todos os Tipos
+                                        </option>
+                                        <option value="income" <%=typeFilter==='income' ? 'selected' : '' %>>⬆ Receita
+                                        </option>
+                                        <option value="expense" <%=typeFilter==='expense' ? 'selected' : '' %>>⬇ Despesa
+                                        </option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="d-flex gap-2">
+                                        <button type="submit" class="btn btn-primary btn-sm flex-grow-1">
+                                            <i class="bi bi-search"></i> Filtrar
+                                        </button>
+                                        <a href="/" class="btn btn-secondary btn-sm">
+                                            <i class="bi bi-x-circle"></i> Limpar
+                                        </a>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <small class="text-muted">
+                            <i class="bi bi-info-circle"></i>
+                            <% if (isCurrentMonth) { %>
+                                Mostrando <strong>mês atual</strong> + pendências de meses anteriores
+                                <% } else { %>
+                                    Mostrando <strong>histórico</strong> de <strong>
+                                        <%= nomeMes %> de <%= selectedYear %>
+                                    </strong>
+                                    <% } %>
+                                        | Total: <strong>
+                                            <%= finances ? finances.length : 0 %>
+                                        </strong> transações
+                                        <% const pendingCount=finances ? finances.filter(f=> f.status ===
+                                            'pending').length : 0; if (pendingCount > 0) { %>
+                                            | ⚠️ <strong class="text-warning">
+                                                <%= pendingCount %>
+                                            </strong> pendentes
+                                            <% } %>
+                        </small>
+                    </div>
+                </div>
+
+                <!-- ===== TABELA DE TRANSAÇÕES ===== -->
+                <div class="card shadow-sm">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+                        <h5 class="mb-0"><i class="bi bi-table"></i> Lista de Transações</h5>
+                        <div>
+                            <a href="/export/pdf" target="_blank" class="btn btn-danger btn-sm me-2">
+                                <i class="bi bi-file-pdf"></i> PDF
+                            </a>
+                            <a href="/add" class="btn btn-success btn-sm">
+                                <i class="bi bi-plus-circle"></i> Nova Transação
+                            </a>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover finance-table mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 50px;">#</th>
+                                        <th>Descrição</th>
+                                        <th style="width: 100px;">Tipo</th>
+                                        <th style="width: 130px;">Valor</th>
+                                        <th style="width: 110px;">Data</th>
+                                        <th style="width: 120px;">Status</th>
+                                        <th style="width: 140px; text-align: center;">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% if (!finances || finances.length===0) { %>
+                                        <tr>
+                                            <td colspan="7" class="text-center py-5 text-muted">
+                                                <i class="bi bi-inbox display-4 d-block mb-3"></i>
+                                                <h5>Nenhuma transação encontrada</h5>
+                                                <p class="mb-3">Nenhuma transação para <strong>
+                                                        <%= nomeMes %> de <%= selectedYear %>
+                                                    </strong></p>
+                                                <a href="/add" class="btn btn-primary">
+                                                    <i class="bi bi-plus-circle"></i> Adicionar
+                                                </a>
+                                                <a href="/test-data" class="btn btn-outline-secondary ms-2">
+                                                    <i class="bi bi-database"></i> Dados de Teste
+                                                </a>
+                                            </td>
+                                        </tr>
+                                        <% } else { %>
+                                            <% finances.forEach(function(finance, index) { %>
+                                                <tr>
+                                                    <td>
+                                                        <%= index + 1 %>
+                                                    </td>
+                                                    <td>
+                                                        <strong>
+                                                            <%= finance.description %>
+                                                        </strong>
+                                                        <br>
+                                                        <small class="text-muted">
+                                                            <i class="bi bi-calendar"></i>
+                                                            <%= new Date(finance.date).toLocaleDateString('pt-BR') %>
+                                                                <span class="badge bg-secondary ms-1">
+                                                                    <%= String(finance.month).padStart(2, '0' ) %>/<%=
+                                                                            finance.year %>
+                                                                </span>
+                                                        </small>
+                                                    </td>
+                                                    <td>
+                                                        <span
+                                                            class="badge <%= finance.type === 'income' ? 'bg-success' : 'bg-danger' %>">
+                                                            <i
+                                                                class="bi <%= finance.type === 'income' ? 'bi-arrow-up' : 'bi-arrow-down' %>"></i>
+                                                            <%= finance.type==='income' ? 'Receita' : 'Despesa' %>
+                                                        </span>
+                                                    </td>
+                                                    <td
+                                                        class="<%= finance.type === 'income' ? 'amount-income' : 'amount-expense' %>">
+                                                        R$ <%= finance.amount.toFixed(2).replace('.', ',' ).replace(/\B(?=(\d{3})+(?!\d))/g, '.' ) %>
+                                                    </td>
+                                                    <td>
+                                                        <%= new Date(finance.date).toLocaleDateString('pt-BR') %>
+                                                    </td>
+                                                    <td>
+                                                        <span
+                                                            class="status-badge <%= finance.status === 'paid' ? 'bg-success text-white' : 'bg-warning text-dark' %>">
+                                                            <i
+                                                                class="bi <%= finance.status === 'paid' ? 'bi-check-circle' : 'bi-clock' %>"></i>
+                                                            <%= finance.status==='paid' ? 'Pago' : 'Pendente' %>
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        <div class="d-flex justify-content-center gap-1">
+                                                            <button class="btn btn-outline-info btn-icon"
+                                                                onclick="toggleStatus('<%= finance._id %>')"
+                                                                title="Alternar status">
+                                                                <i class="bi bi-arrow-repeat"></i>
+                                                            </button>
+                                                            <a href="/edit/<%= finance._id %>"
+                                                                class="btn btn-outline-primary btn-icon" title="Editar">
+                                                                <i class="bi bi-pencil"></i>
+                                                            </a>
+                                                            <button class="btn btn-outline-danger btn-icon"
+                                                                onclick="confirmDelete('<%= finance._id %>')"
+                                                                title="Excluir">
+                                                                <i class="bi bi-trash"></i>
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                                <% }); %>
+                                                    <% } %>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== ABA 3: HISTÓRICO MENSAL ===== -->
+            <div class="tab-pane fade" id="historico" role="tabpanel" aria-labelledby="historico-tab">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0">
+                            <i class="bi bi-clock-history"></i> Histórico Mensal - Saldo Acumulado
+                            <span class="badge bg-secondary ms-2">Mês a mês</span>
+                        </h6>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Mês/Ano</th>
+                                        <th class="text-end">Receitas</th>
+                                        <th class="text-end">Despesas</th>
+                                        <th class="text-end">Saldo do Mês</th>
+                                        <th class="text-end">Acumulado</th>
+                                        <th class="text-center">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% if (monthBalances && monthBalances.length> 0) { %>
+                                        <% monthBalances.sort((a, b)=> b.year - a.year || b.month -
+                                            a.month).forEach(function(m) { %>
+                                            <tr>
+                                                <td>
+                                                    <strong>
+                                                        <%= String(m.month).padStart(2, '0' ) %>/<%= m.year %>
+                                                    </strong>
+                                                    <span class="badge bg-secondary ms-1">
+                                                        <%= m.transactions.length %> itens
+                                                    </span>
+                                                    <% if (m.balance>= 0) { %>
+                                                        <span class="badge bg-success ms-1">✅ Sobrou</span>
+                                                        <% } else { %>
+                                                            <span class="badge bg-danger ms-1">⚠️ Faltou</span>
+                                                            <% } %>
+                                                </td>
+                                                <td class="text-end text-success">R$ <%= m.income.toFixed(2) %>
+                                                </td>
+                                                <td class="text-end text-danger">R$ <%= m.expense.toFixed(2) %>
+                                                </td>
+                                                <td
+                                                    class="text-end <%= m.balance >= 0 ? 'text-success' : 'text-danger' %>">
+                                                    <strong>R$ <%= m.balance.toFixed(2) %></strong>
+                                                </td>
+                                                <td
+                                                    class="text-end <%= m.accumulatedBalance >= 0 ? 'text-success' : 'text-danger' %>">
+                                                    <strong>R$ <%= m.accumulatedBalance.toFixed(2) %></strong>
+                                                </td>
+                                                <td class="text-center">
+                                                    <% if (m.balance>= 0) { %>
+                                                        <span class="badge bg-success">✅ Sobrou</span>
+                                                        <% } else { %>
+                                                            <span class="badge bg-danger">⚠️ Faltou</span>
+                                                            <% } %>
+                                                                <br>
+                                                                <small class="text-muted">
+                                                                    <%= m.transactions.length> 0 ? m.transactions.length
+                                                                        + ' transações' : 'vazio' %>
+                                                                </small>
+                                                </td>
+                                            </tr>
+                                            <% }); %>
+                                                <% } else { %>
+                                                    <tr>
+                                                        <td colspan="6" class="text-center py-4 text-muted">
+                                                            <i class="bi bi-inbox d-block mb-2"></i>
+                                                            Nenhum dado disponível para o histórico mensal
+                                                        </td>
+                                                    </tr>
+                                                    <% } %>
+                                </tbody>
+                                <% if (monthBalances && monthBalances.length> 0) { %>
+                                    <tfoot class="table-light">
+                                        <tr>
+                                            <td><strong>TOTAL</strong></td>
+                                            <td class="text-end text-success">
+                                                <strong>R$ <%= monthBalances.reduce((sum, m)=> sum + m.income,
+                                                        0).toFixed(2) %></strong>
+                                            </td>
+                                            <td class="text-end text-danger">
+                                                <strong>R$ <%= monthBalances.reduce((sum, m)=> sum + m.expense,
+                                                        0).toFixed(2) %></strong>
+                                            </td>
+                                            <td
+                                                class="text-end <%= monthBalances.reduce((sum, m) => sum + m.balance, 0) >= 0 ? 'text-success' : 'text-danger' %>">
+                                                <strong>R$ <%= monthBalances.reduce((sum, m)=> sum + m.balance,
+                                                        0).toFixed(2) %></strong>
+                                            </td>
+                                            <td
+                                                class="text-end <%= monthBalances.length > 0 && monthBalances[monthBalances.length - 1].accumulatedBalance >= 0 ? 'text-success' : 'text-danger' %>">
+                                                <strong>
+                                                    <%= monthBalances.length> 0 ? monthBalances[monthBalances.length
+                                                        - 1].accumulatedBalance.toFixed(2) : '0.00' %>
+                                                </strong>
+                                            </td>
+                                            <td></td>
+                                        </tr>
+                                    </tfoot>
+                                    <% } %>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div> <!-- Fecha tab-content -->
+
+    </div> <!-- Fecha container -->
+
+    <!-- ===== TOAST CONTAINER ===== -->
+    <div id="toastContainer" class="toast-container-custom"></div>
+
+    <!-- ===== DADOS DO SERVIDOR PARA O JAVASCRIPT ===== -->
+    <div id="flashMessages" style="display: none;" data-error="<%= error ? error : '' %>"
+        data-success="<%= success ? success : '' %>" data-info="<%= info ? info : '' %>">
+    </div>
+
+    <!-- ===== SCRIPTS ===== -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // ============================================
+        // TOAST UNIFICADO
+        // ============================================
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast-custom toast-${type}`;
+
+            const iconMap = {
+                success: '✅',
+                danger: '❌',
+                info: 'ℹ️'
+            };
+
+            toast.innerHTML = `
+            <span>${iconMap[type] || 'ℹ️'} ${message}</span>
+            <button onclick="this.parentElement.remove()" 
+                    style="background: none; border: none; font-size: 20px; cursor: pointer; padding: 0 8px; color: inherit;">
+                ×
+            </button>
+        `;
+
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                if (toast.parentElement) {
+                    toast.style.opacity = '0';
+                    toast.style.transition = 'opacity 0.3s';
+                    setTimeout(() => toast.remove(), 300);
+                }
+            }, 4000);
+        }
+
+        // ============================================
+        // EXPORTAR DADOS
+        // ============================================
+        function exportData() {
+            fetch('/api/export')
+                .then(response => response.json())
+                .then(data => {
+                    const blob = new Blob([JSON.stringify(data, null, 2)], {
+                        type: 'application/json'
+                    });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `financas_${new Date().toISOString().split('T')[0]}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+
+                    showToast('✅ Dados exportados com sucesso!', 'success');
+                })
+                .catch(error => {
+                    console.error('Erro ao exportar:', error);
+                    showToast('❌ Erro ao exportar dados', 'danger');
+                });
+        }
+
+        // ============================================
+        // ALTERNAR STATUS
+        // ============================================
+        function toggleStatus(id) {
+            const buttons = document.querySelectorAll(`button[onclick*="toggleStatus('${id}')"]`);
+            buttons.forEach(btn => {
+                btn.disabled = true;
+                btn.innerHTML = '⏳';
+            });
+
+            fetch(`/toggle/${id}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showToast(`✅ Status alterado para ${data.status === 'paid' ? 'Pago' : 'Pendente'}!`, 'success');
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 800);
+                    } else {
+                        showToast('❌ Erro ao alternar status', 'danger');
+                        buttons.forEach(btn => {
+                            btn.disabled = false;
+                            btn.innerHTML = '<i class="bi bi-arrow-repeat"></i>';
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('❌ Erro:', error);
+                    showToast('❌ Erro ao alternar status', 'danger');
+                    buttons.forEach(btn => {
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="bi bi-arrow-repeat"></i>';
+                    });
+                });
+        }
+
+        // ============================================
+        // CONFIRMAR EXCLUSÃO
+        // ============================================
+        function confirmDelete(id) {
+            if (confirm('⚠️ Tem certeza que deseja excluir esta transação?')) {
+                const btns = document.querySelectorAll(`button[onclick*="confirmDelete('${id}')"]`);
+                btns.forEach(btn => {
+                    btn.textContent = '⏳';
+                    btn.disabled = true;
+                });
+
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = `/delete/${id}?_method=DELETE`;
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+
+        // ============================================
+        // INICIALIZAÇÃO
+        // ============================================
+        document.addEventListener('DOMContentLoaded', function () {
+            console.log('🚀 DevFinance - Desenvolvido por Lucca Andrade Lopes');
+            console.log('📍 Caraguatatuba - SP | 36 anos');
+            console.log('💻 4 anos na área de TI');
+            console.log('🌟 Primeiro projeto web!');
+
+            // ===== LER MENSAGENS FLASH DO ELEMENTO HTML =====
+            const flashDiv = document.getElementById('flashMessages');
+            if (flashDiv) {
+                const error = flashDiv.dataset.error;
+                const success = flashDiv.dataset.success;
+                const info = flashDiv.dataset.info;
+
+                if (error && error.length > 0 && error !== 'undefined') {
+                    showToast(error, 'danger');
+                }
+                if (success && success.length > 0 && success !== 'undefined') {
+                    showToast(success, 'success');
+                }
+                if (info && info.length > 0 && info !== 'undefined') {
+                    showToast(info, 'info');
+                }
+            }
+        });
+    </script>
+
+    <%- include('partials/footer') %>

@@ -164,6 +164,8 @@ export const register = async (req, res) => {
 // LOGOUT
 // ============================================
 export const logout = (req, res) => {
+    console.log('🚪 LOGOUT chamado!'); // <-- ADICIONE ESTA LINHA
+    console.log('🆔 Usuário antes do logout:', req.session.userId);
     req.session.destroy((err) => {
         if (err) {
             console.error('❌ Erro ao fazer logout:', err);

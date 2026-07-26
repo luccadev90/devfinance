@@ -2,7 +2,8 @@
 import express from 'express';
 const router = express.Router();
 import financeController from '../controllers/financeController.js';
-import authController from '../controllers/authController.js';
+// import authController from '../controllers/authController.js';
+import * as authController from '../controllers/authController.js';
 import Finance from '../models/Finance.js';
 
 // ============================================

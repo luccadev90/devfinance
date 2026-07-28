@@ -605,8 +605,8 @@
     <div id="toastContainer" class="toast-container-custom"></div>
 
     <!-- ===== DADOS DO SERVIDOR PARA O JAVASCRIPT ===== -->
-    <div id="flashMessages" style="display: none;" data-error="<%= error ? error : '' %>"
-        data-success="<%= success ? success : '' %>" data-info="<%= info ? info : '' %>">
+    <div id="flashMessages" style="display: none;" data-error="<%= locals.error || '' %>"
+        data-success="<%= locals.success || '' %>" data-info="<%= locals.info || '' %>">
     </div>
 
     <!-- ===== SCRIPTS ===== -->

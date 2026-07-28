@@ -1,9 +1,6 @@
-
 import express from 'express';
 const router = express.Router();
 import financeController from '../controllers/financeController.js';
-// import authController from '../controllers/authController.js';
-// import * as authController from '../controllers/authController.js';
 import {
     showLogin,
     showRegister,
@@ -22,12 +19,13 @@ router.get('/login', showLogin);
 router.post('/login', login);
 router.get('/register', showRegister);
 router.post('/register', register);
+router.get('/logout', logout);   // Adicione esta linha também
 router.post('/logout', logout);
 
 // Rota de health check
 router.get('/health', (req, res) => {
-    res.json({ 
-        status: 'OK', 
+    res.json({
+        status: 'OK',
         message: 'Servidor rodando!',
         timestamp: new Date().toISOString()
     });
@@ -36,8 +34,29 @@ router.get('/health', (req, res) => {
 // ============================================
 // ROTAS PROTEGIDAS (PRECISAM DE LOGIN)
 // ============================================
+
+// ✅ MIDDLEWARE DE AUTENTICAÇÃO (redireciona se não logado)
 router.use(isAuthenticated);
-router.use(addUserToLocals);
+
+// ✅ MIDDLEWARE PARA ADICIONAR USUÁRIO AOS LOCALS
+// (Só executa se estiver autenticado, pois vem depois do isAuthenticated)
+router.use((req, res, next) => {
+    if (req.session && req.session.userId) {
+        res.locals.isAuthenticated = true;
+        res.locals.user = {
+            id: req.session.userId,
+            name: req.session.userName || 'Usuário',
+            email: req.session.userEmail || ''
+        };
+        console.log('✅ Usuário adicionado aos locals:', req.session.userName);
+    } else {
+        res.locals.isAuthenticated = false;
+        res.locals.user = null;
+    }
+    next();
+});
+
+// ✅ DADOS COMUNS
 router.use(financeController.addCommonData);
 
 // Rotas principais
@@ -67,7 +86,6 @@ router.get('/test-months', async (req, res) => {
 
         console.log('🔍 Testando meses para usuário:', userId);
 
-        // Buscar todos os registros do usuário
         const allData = await Finance.find({ userId: userId })
             .select('description month year date status')
             .sort({ year: -1, month: -1 })
@@ -75,7 +93,6 @@ router.get('/test-months', async (req, res) => {
 
         console.log(`📊 Total de registros: ${allData.length}`);
 
-        // Extrair meses únicos
         const monthMap = new Map();
         allData.forEach(item => {
             if (item.month && item.year) {
@@ -97,7 +114,6 @@ router.get('/test-months', async (req, res) => {
             }
         });
 
-        // Converter para array
         const availableMonths = Array.from(monthMap.values())
             .sort((a, b) => {
                 if (a.year !== b.year) return b.year - a.year;

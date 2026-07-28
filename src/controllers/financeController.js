@@ -1,6 +1,6 @@
 // const Finance = require('../models/Finance');
 import Finance from '../models/Finance.js';
-import { formatMoney , toNumber} from '../utils/moneyUtils.js';
+import { formatMoney, toNumber } from '../utils/moneyUtils.js';
 
 // ============================================
 // FUNÇÕES AUXILIARES
@@ -17,7 +17,7 @@ export const calculateBalances = (finances) => {
 
     finances.forEach(finance => {
         const amount = toNumber(finance.amount);
-        
+
         if (finance.type === 'income') {
             totalIncome += amount;
             if (finance.status === 'paid') {
@@ -85,7 +85,7 @@ export const addCommonData = async (req, res, next) => {
 export const getFinances = async (req, res) => {
     try {
         const userId = req.session.userId;
-        
+
         const statusFilter = req.query.status || 'all';
         const typeFilter = req.query.type || 'all';
         const monthFilter = req.query.month || 'current';
@@ -93,7 +93,7 @@ export const getFinances = async (req, res) => {
 
         let selectedMonth, selectedYear;
         let isCurrentMonth = false;
-        
+
         if (monthFilter === 'current') {
             const now = new Date();
             selectedMonth = now.getMonth() + 1;
@@ -153,7 +153,7 @@ export const getFinances = async (req, res) => {
         let accumulatedIncomeUpToMonth = 0;
         let accumulatedExpenseUpToMonth = 0;
 
-        const monthsUpToSelected = monthBalances.filter(m => 
+        const monthsUpToSelected = monthBalances.filter(m =>
             m.year < selectedYear || (m.year === selectedYear && m.month <= selectedMonth)
         );
 
@@ -164,7 +164,7 @@ export const getFinances = async (req, res) => {
         });
 
         // ===== SALDO DO MÊS ANTERIOR =====
-        const previousMonthData = monthBalances.filter(m => 
+        const previousMonthData = monthBalances.filter(m =>
             m.year < selectedYear || (m.year === selectedYear && m.month < selectedMonth)
         );
         const previousMonth = previousMonthData[previousMonthData.length - 1];
@@ -172,15 +172,15 @@ export const getFinances = async (req, res) => {
         const previousMonthAccumulated = previousMonth ? previousMonth.accumulatedBalance : 0;
 
         // ===== FILTRAR TRANSAÇÕES DO MÊS SELECIONADO =====
-        let filteredByMonth = allTransactions.filter(t => 
+        let filteredByMonth = allTransactions.filter(t =>
             t.month === selectedMonth && t.year === selectedYear
         );
 
         // ===== PENDÊNCIAS DE MESES ANTERIORES =====
         let pendingFromPrevious = [];
         if (isCurrentMonth) {
-            pendingFromPrevious = allTransactions.filter(t => 
-                t.status === 'pending' && 
+            pendingFromPrevious = allTransactions.filter(t =>
+                t.status === 'pending' &&
                 (t.year < selectedYear || (t.year === selectedYear && t.month < selectedMonth))
             );
         }
@@ -226,7 +226,7 @@ export const getFinances = async (req, res) => {
             .reduce((sum, t) => sum + t.amount, 0);
 
         // ===== DADOS DO MÊS ATUAL =====
-        const currentMonthData = monthBalances.find(m => 
+        const currentMonthData = monthBalances.find(m =>
             m.year === selectedYear && m.month === selectedMonth
         );
 
@@ -237,7 +237,7 @@ export const getFinances = async (req, res) => {
         // ============================================
         // ✅ AQUI: CRIAR VERSÕES FORMATADAS (DEPOIS que todas as variáveis existem)
         // ============================================
-        
+
         // Depois de calcular os balances, adicione versões formatadas
         const balancesFormatted = {
             totalIncome: formatMoney(balances.totalIncome),
@@ -252,16 +252,16 @@ export const getFinances = async (req, res) => {
             // ✅ CORRIGIDO: Usar a variável que foi calculada
             accumulatedBalance: formatMoney(accumulatedBalanceUpToMonth)
         };
-        
+
         // Formatar também os dados do mês
         const currentMonthDataFormatted = {
             income: formatMoney(currentMonthIncome),
             expense: formatMoney(currentMonthExpense),
             balance: formatMoney(currentMonthBalance)
         };
-        
+
         // No getFinances, depois de calcular accumulatedBalanceUpToMonth
-        const accumulatedBalanceFormatted = formatMoney(accumulatedBalanceUpToMonth);   
+        const accumulatedBalanceFormatted = formatMoney(accumulatedBalanceUpToMonth);
 
         // ============================================
         // ✅ AQUI: RENDERIZAR COM TODOS OS DADOS
@@ -286,7 +286,7 @@ export const getFinances = async (req, res) => {
             availableMonths: availableMonths,
             currentMonth: currentMonth,
             currentYear: currentYear,
-            
+
             // ===== DADOS DE SALDO ACUMULADO REAL =====
             accumulatedBalance: accumulatedBalanceUpToMonth,
             accumulatedIncome: accumulatedIncomeUpToMonth,
@@ -294,12 +294,12 @@ export const getFinances = async (req, res) => {
             previousMonthBalance: previousMonthBalance,
             previousMonthAccumulated: previousMonthAccumulated,
             totalPending: totalPending,
-            
+
             // ===== DADOS DO MÊS ATUAL =====
             currentMonthIncome: currentMonthIncome,
             currentMonthExpense: currentMonthExpense,
             currentMonthBalance: currentMonthBalance,
-            
+
             // ====== Dados adicionais formatados =======
             currentMonthDataFormatted: currentMonthDataFormatted, // ✅ Versão formatada
             accumulatedBalanceFormatted: accumulatedBalanceFormatted, // ✅ ADICIONE ESTA
@@ -307,7 +307,11 @@ export const getFinances = async (req, res) => {
             totalPendingFormatted: formatMoney(totalPending),// ✅ Versão formatada
 
             // ===== TODOS OS MESES COM SALDO =====
-            monthBalances: monthBalances
+            monthBalances: monthBalances,
+            // ✅ ADICIONE ESTAS 3 LINHAS AQUI:
+            error: req.flash('error'),
+            success: req.flash('success'),
+            info: req.flash('info')
         });
 
     } catch (error) {
@@ -336,7 +340,7 @@ export const addFinance = async (req, res) => {
         // Determinar data
         let parsedDate;
         let month, year;
-        
+
         if (date) {
             parsedDate = new Date(date);
             // Verificar se a data é válida
@@ -346,7 +350,7 @@ export const addFinance = async (req, res) => {
         } else {
             parsedDate = new Date();
         }
-        
+
         month = parsedDate.getMonth() + 1;
         year = parsedDate.getFullYear();
 
@@ -365,7 +369,7 @@ export const addFinance = async (req, res) => {
 
         await newFinance.save();
         console.log(`✅ Adicionado: ${newFinance.description} - ${month}/${year}`);
-        
+
         // Redirecionar mantendo o filtro atual
         const redirectUrl = req.query.redirect || '/';
         res.redirect(redirectUrl);
@@ -383,7 +387,7 @@ export const showEditForm = async (req, res) => {
     try {
         const id = req.params.id;
         const userId = req.session.userId;
-        
+
         // Buscar apenas se for do usuário logado
         const finance = await Finance.findOne({ _id: id, userId: userId });
 
@@ -490,9 +494,9 @@ export const toggleStatus = async (req, res) => {
     try {
         const id = req.params.id;
         const userId = req.session.userId;
-        
+
         console.log('🔄 ID recebido:', id);
-        
+
         // Buscar apenas se for do usuário logado
         const finance = await Finance.findOne({ _id: id, userId: userId });
 
@@ -503,7 +507,7 @@ export const toggleStatus = async (req, res) => {
         const newStatus = finance.status === 'paid' ? 'pending' : 'paid';
         finance.status = newStatus;
         finance.updatedAt = new Date();
-        
+
         await finance.save();
 
         console.log(`✅ Status alternado: ${finance.description} -> ${finance.status}`);
@@ -528,10 +532,10 @@ export const getStats = async (req, res) => {
         const userId = req.session.userId;
         const finances = await Finance.find({ userId: userId }).lean();
         const balances = calculateBalances(finances);
-        
+
         res.json({
             ...balances,
-             formatted: {
+            formatted: {
                 totalIncome: formatMoney(balances.totalIncome),
                 totalExpense: formatMoney(balances.totalExpense),
                 balance: formatMoney(balances.balance),
@@ -552,14 +556,14 @@ export const exportData = async (req, res) => {
         const userId = req.session.userId;
         const finances = await Finance.find({ userId: userId }).lean();
         const stats = calculateBalances(finances);
-        
+
         const data = {
             finances: finances,
             stats: stats,
             exportedAt: new Date().toISOString(),
             totalRecords: finances.length
         };
-        
+
         res.json(data);
     } catch (error) {
         console.error('Erro ao exportar dados:', error);
@@ -576,7 +580,7 @@ export const exportData = async (req, res) => {
 export const addTestData = async (req, res) => {
     try {
         const userId = req.session.userId;
-        
+
         const testData = [
             { description: 'Salario Mensal', amount: 5000, type: 'income', status: 'paid' },
             { description: 'Aluguel', amount: 1200, type: 'expense', status: 'pending' },
@@ -624,22 +628,22 @@ import path from 'path';
 export const exportPDF = async (req, res) => {
     try {
         console.log('📄 Iniciando geração de PDF...');
-        
+
         const userId = req.session.userId;
         console.log('🆔 Usuário ID:', userId);
-        
+
         const finances = await Finance.find({ userId: userId }).sort({ createdAt: -1 });
         console.log('📊 Total de registros:', finances.length);
-        
+
         if (finances.length === 0) {
             console.log('⚠️ Nenhum dado para exportar');
             req.flash('info', 'Não há dados para exportar em PDF');
             return res.redirect('/');
         }
-        
+
         const balances = calculateBalances(finances);
         console.log('📊 Balanços calculados');
-        
+
         // Criar documento PDF
         const doc = new PDFDocument({
             size: 'A4',
@@ -654,7 +658,7 @@ export const exportPDF = async (req, res) => {
         // Configurar resposta
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename=relatorio-financas-${new Date().toISOString().split('T')[0]}.pdf`);
-        
+
         doc.pipe(res);
 
         console.log('📄 Configurando cabeçalho do PDF...');
@@ -703,13 +707,13 @@ export const exportPDF = async (req, res) => {
         summaryData.forEach((item, index) => {
             const xPos = index < 2 ? col1X : col2X;
             const yOffset = index < 2 ? index * 35 : (index - 2) * 35;
-            
+
             doc
                 .fontSize(9)
                 .font('Helvetica')
                 .fillColor('#34495e')
                 .text(item.label, xPos, yPos + yOffset);
-            
+
             doc
                 .fontSize(11)
                 .font('Helvetica-Bold')
@@ -756,7 +760,7 @@ export const exportPDF = async (req, res) => {
             if (rowY > 700) {
                 doc.addPage();
                 rowY = 50;
-                
+
                 // Reimprimir cabeçalho na nova página
                 doc.rect(50, rowY - 5, 495, 25).fill('#3498db');
                 doc.fillColor('#ffffff');
@@ -792,9 +796,9 @@ export const exportPDF = async (req, res) => {
                 doc
                     .fontSize(8)
                     .font('Helvetica')
-                    .text(text, currentX3, rowY, { 
-                        width: colWidths[i], 
-                        align: i === 0 ? 'center' : 'left' 
+                    .text(text, currentX3, rowY, {
+                        width: colWidths[i],
+                        align: i === 0 ? 'center' : 'left'
                     });
                 currentX3 += colWidths[i];
             });
@@ -825,16 +829,16 @@ export const exportPDF = async (req, res) => {
 
 export default {
     calculateBalances,
-    addCommonData, 
-    getFinances, 
+    addCommonData,
+    getFinances,
     showAddForm,
-    addFinance, 
-    showEditForm,  
+    addFinance,
+    showEditForm,
     updateFinance,
-    deleteFinance, 
-    toggleStatus, 
-    getStats, 
-    exportData, 
+    deleteFinance,
+    toggleStatus,
+    getStats,
+    exportData,
     addTestData,
     exportPDF
-}
+};

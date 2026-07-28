@@ -5,7 +5,7 @@ import path from 'path';
 import session from 'express-session';
 import flash from 'connect-flash';
 import MongoStore from 'connect-mongo';
-import {fileURLToPath} from 'url';
+import { fileURLToPath } from 'url';
 import { formatMoney } from './utils/moneyUtils.js'; // 👈 IMPORTE A FUNÇÃO
 
 import 'dotenv/config';
@@ -14,7 +14,7 @@ import connectDB from './config/database.js';
 import financeRoutes from './routes/financeRoutes.js';
 
 const app = express();
-const PORT = process.env.PORT 
+const PORT = process.env.PORT;
 
 // ===== CONECTAR AO MONGODB =====
 connectDB();
@@ -71,37 +71,53 @@ app.use((req, res, next) => {
     next();
 });
 
-// ===== MIDDLEWARE PARA VARIÁVEIS GLOBAIS =====
-app.use((req, res, next) => {
-    // Flash messages
-    res.locals.error = req.flash('error');
-    res.locals.success = req.flash('success');
-    res.locals.info = req.flash('info');
-    
-    // Dados do usuário
-    if (req.session && req.session.userId) {
-        res.locals.isAuthenticated = true;
-        res.locals.user = {
-            id: req.session.userId,
-            name: req.session.userName || 'Usuário',
-            email: req.session.userEmail || ''
-        };
-        console.log('✅ Usuário na sessão:', req.session.userName);
-    } else {
-        res.locals.isAuthenticated = false;
-        res.locals.user = null;
-        console.log('❌ Nenhum usuário na sessão');
-    }
-    
-    next();
-});
 
+// ===== MIDDLEWARE PARA VARIÁVEIS GLOBAIS =====
+// app.use((req, res, next) => {
+//     // Flash messages
+//     res.locals.error = req.flash('error');
+//     res.locals.success = req.flash('success');
+//     res.locals.info = req.flash('info');
+
+//     // Dados do usuário
+//     if (req.session && req.session.userId) {
+//         res.locals.isAuthenticated = true;
+//         res.locals.user = {
+//             id: req.session.userId,
+//             name: req.session.userName || 'Usuário',
+//             email: req.session.userEmail || ''
+//         };
+//         console.log('✅ Usuário na sessão:', req.session.userName);
+//     } else {
+//         res.locals.isAuthenticated = false;
+//         res.locals.user = null;
+//         console.log('❌ Nenhum usuário na sessão');
+//     }
+
+//     next();
+// });
+// ===== TRATAMENTO DE ERROS - VERSÃO DETALHADA =====
+app.use((err, req, res, next) => {
+    console.error('❌ ===== ERRO DETALHADO =====');
+    console.error('❌ Mensagem:', err.message);
+    console.error('❌ Stack:', err.stack);
+    console.error('❌ URL:', req.url);
+    console.error('❌ Método:', req.method);
+    console.error('❌ Session:', req.session);
+    console.error('❌ ===== FIM DO ERRO =====');
+
+    res.status(500).render('error', {
+        title: 'Erro no Servidor',
+        message: process.env.NODE_ENV === 'development' ? err.message : 'Ocorreu um erro interno. Tente novamente mais tarde.',
+        error: process.env.NODE_ENV === 'development' ? err : {}
+    });
+});
 // ===== ROTAS =====
 app.use('/', financeRoutes);
 
 // ===== ROTA 404 =====
 app.use((req, res) => {
-    res.status(404).render('404', { 
+    res.status(404).render('404', {
         title: 'Página não encontrada',
         message: 'A página que você procura não existe.'
     });

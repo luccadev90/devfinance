@@ -1,6 +1,3 @@
-// No início do arquivo
-console.log('🔧 AuthController carregado!');
-
 
 // const User = require('../models/User');
 import User from '../models/User.js';
@@ -8,12 +5,12 @@ import User from '../models/User.js';
 // TELA DE LOGIN
 // ============================================
 export const showLogin = (req, res) => {
-   
+
     if (req.session && req.session.userId) {
         console.log('👤 Usuário já logado, redirecionando para dashboard');
         return res.redirect('/');
     }
-    
+
     res.render('auth/login', {
         title: 'Login - DevFinance',
         error: req.flash('error'),
@@ -28,7 +25,7 @@ export const showRegister = (req, res) => {
     if (req.session && req.session.userId) {
         return res.redirect('/');
     }
-    
+
     res.render('auth/register', {
         title: 'Cadastro - DevFinance',
         error: req.flash('error'),
@@ -87,13 +84,13 @@ export const login = async (req, res) => {
                 req.flash('error', 'Erro ao fazer login. Tente novamente.');
                 return res.redirect('/login');
             }
-            
+
             console.log('✅ Sessão salva com sucesso!');
             console.log('📦 Session ID após salvar:', req.session.id);
-            
+
             // Redirecionar para dashboard
             req.flash('success', `Bem-vindo(a) ${user.name}!`);
-            
+
             // Redirecionar com força
             return res.redirect('/');
         });
@@ -156,7 +153,7 @@ export const register = async (req, res) => {
         console.error('❌ Erro no cadastro:', error);
         req.flash('error', 'Erro ao cadastrar. Verifique os dados.');
         res.redirect('/register');
-        
+
     }
 };
 
@@ -172,6 +169,7 @@ export const logout = (req, res) => {
     req.session.destroy((err) => {
         if (err) {
             console.error('❌ Erro ao fazer logout:', err);
+            return res.status(500).send('Erro ao fazer logout');
         }
         console.log('👋 Logout realizado com sucesso!');
         console.log('📍 Redirecionando para /login');
@@ -182,30 +180,46 @@ export const logout = (req, res) => {
 // ============================================
 // MIDDLEWARE - VERIFICAR SE ESTÁ LOGADO
 // ============================================
+// export const isAuthenticated = (req, res, next) => {
+//     console.log('🔍 Verificando autenticação...');
+//     console.log('📦 Session:', req.session);
+//     console.log('🆔 userId:', req.session?.userId);
+
+//     if (!req.session || !req.session.userId) {
+//         console.log('❌ Não autenticado - redirecionando para login');
+//         // Salvar URL para redirecionar depois
+//         req.session.returnTo = req.originalUrl;
+//         req.flash('error', 'Faça login para acessar esta página');
+//         return res.redirect('/login');
+//     }
+//     // Verificar se o usuário ainda existe no banco
+//     const user = User.findById(req.session.userId);
+//     if (!user) {
+//         req.session.destroy();
+//         req.flash('error', 'Sessão inválida. Faça login novamente.');
+//         return res.redirect('/login');
+//     }
+
+//     console.log('✅ Usuário autenticado:', req.session.userId);
+//     next();
+// };
+// No authController.js
 export const isAuthenticated = (req, res, next) => {
     console.log('🔍 Verificando autenticação...');
     console.log('📦 Session:', req.session);
     console.log('🆔 userId:', req.session?.userId);
-    
+
     if (!req.session || !req.session.userId) {
         console.log('❌ Não autenticado - redirecionando para login');
-         // Salvar URL para redirecionar depois
         req.session.returnTo = req.originalUrl;
         req.flash('error', 'Faça login para acessar esta página');
         return res.redirect('/login');
-    } 
-    // Verificar se o usuário ainda existe no banco
-    const user = User.findById(req.session.userId);
-    if (!user) {
-        req.session.destroy();
-        req.flash('error', 'Sessão inválida. Faça login novamente.');
-        return res.redirect('/login');
     }
 
+    // ✅ JÁ ESTÁ AUTENTICADO - CONTINUAR
     console.log('✅ Usuário autenticado:', req.session.userId);
     next();
 };
-
 // ============================================
 // MIDDLEWARE - DADOS DO USUÁRIO PARA VIEWS
 // ============================================
@@ -225,7 +239,7 @@ export const addUserToLocals = (req, res, next) => {
 };
 
 export default {
-    showLogin, 
+    showLogin,
     showRegister,
     login,
     register,

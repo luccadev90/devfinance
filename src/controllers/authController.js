@@ -1,11 +1,10 @@
-
-// const User = require('../models/User');
 import User from '../models/User.js';
+import bcrypt from 'bcryptjs';
+
 // ============================================
 // TELA DE LOGIN
 // ============================================
 export const showLogin = (req, res) => {
-
     if (req.session && req.session.userId) {
         console.log('👤 Usuário já logado, redirecionando para dashboard');
         return res.redirect('/');
@@ -34,74 +33,6 @@ export const showRegister = (req, res) => {
 };
 
 // ============================================
-// PROCESSAR LOGIN
-// ============================================
-export const login = async (req, res) => {
-    try {
-        const { email, password } = req.body;
-
-        console.log('📝 Tentativa de login:', email);
-        console.log('📦 Session antes do login:', req.session?.id);
-
-
-        if (!email || !password) {
-            console.log('❌ Campos vazios');
-            req.flash('error', 'Preencha todos os campos');
-            return res.redirect('/login');
-        }
-
-        const user = await User.findOne({ email: email.toLowerCase() });
-        if (!user) {
-            console.log('❌ Usuário não encontrado:', email);
-            console.log('Usuário não encontrado:', email); // <-- L
-            req.flash('error', 'Email ou senha incorretos');
-            return res.redirect('/login');
-        }
-
-        console.log('✅ Usuário encontrado:', user.name);
-
-        const isMatch = await user.comparePassword(password);
-        if (!isMatch) {
-            console.log('❌ Senha incorreta para:', email);
-            req.flash('error', 'Email ou senha incorretos');
-            return res.redirect('/login');
-        }
-
-        console.log('✅ Senha correta!');
-
-        // Criar sessão
-        req.session.userId = user._id;
-        req.session.userName = user.name;
-        req.session.userEmail = user.email;
-
-        console.log('📦 Sessão criada:', req.session);
-        console.log('🆔 userId:', req.session.userId);
-
-        // Salvar explicitamente
-        req.session.save((err) => {
-            if (err) {
-                console.error('❌ Erro ao salvar sessão:', err);
-                req.flash('error', 'Erro ao fazer login. Tente novamente.');
-                return res.redirect('/login');
-            }
-
-            console.log('✅ Sessão salva com sucesso!');
-            console.log('📦 Session ID após salvar:', req.session.id);
-
-            // Redirecionar para dashboard
-            req.flash('success', `Bem-vindo(a) ${user.name}!`);
-
-            // Redirecionar com força
-            return res.redirect('/');
-        });
-    } catch (error) {
-        console.error('❌ Erro no login:', error);
-        req.flash('error', 'Erro ao fazer login. Tente novamente.');
-        res.redirect('/login');
-    }
-};
-
-// ============================================
 // PROCESSAR CADASTRO
 // ============================================
 export const register = async (req, res) => {
@@ -111,6 +42,7 @@ export const register = async (req, res) => {
         console.log('📝 Tentativa de cadastro:', email);
         console.log('📦 Body recebido:', req.body);
 
+        // VALIDAÇÕES
         if (!name || !email || !password || !confirmPassword) {
             console.log('❌ Campos vazios');
             req.flash('error', 'Preencha todos os campos');
@@ -129,6 +61,7 @@ export const register = async (req, res) => {
             return res.redirect('/register');
         }
 
+        // VERIFICAR SE EMAIL JÁ EXISTE
         const existingUser = await User.findOne({ email: email.toLowerCase() });
         if (existingUser) {
             console.log('❌ Email já existe:', email);
@@ -136,10 +69,15 @@ export const register = async (req, res) => {
             return res.redirect('/register');
         }
 
+        // ✅ CRIPTOGRAFAR SENHA
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+
+        // CRIAR USUÁRIO
         const user = new User({
             name: name.trim(),
             email: email.toLowerCase(),
-            password: password
+            password: hashedPassword // 👈 SENHA JÁ CRIPTOGRAFADA
         });
 
         await user.save();
@@ -153,7 +91,63 @@ export const register = async (req, res) => {
         console.error('❌ Erro no cadastro:', error);
         req.flash('error', 'Erro ao cadastrar. Verifique os dados.');
         res.redirect('/register');
+    }
+};
 
+// ============================================
+// PROCESSAR LOGIN
+// ============================================
+export const login = async (req, res) => {
+    try {
+        const { email, password } = req.body;
+
+        console.log('📝 Tentativa de login:', email);
+
+        if (!email || !password) {
+            console.log('❌ Campos vazios');
+            req.flash('error', 'Preencha todos os campos');
+            return res.redirect('/login');
+        }
+
+        const user = await User.findOne({ email: email.toLowerCase() });
+        if (!user) {
+            console.log('❌ Usuário não encontrado:', email);
+            req.flash('error', 'Email ou senha incorretos');
+            return res.redirect('/login');
+        }
+
+        console.log('✅ Usuário encontrado:', user.name);
+
+        // ✅ COMPARAR SENHA
+        const isMatch = await user.comparePassword(password);
+        if (!isMatch) {
+            console.log('❌ Senha incorreta para:', email);
+            req.flash('error', 'Email ou senha incorretos');
+            return res.redirect('/login');
+        }
+
+        console.log('✅ Senha correta!');
+
+        // Criar sessão
+        req.session.userId = user._id;
+        req.session.userName = user.name;
+        req.session.userEmail = user.email;
+
+        req.session.save((err) => {
+            if (err) {
+                console.error('❌ Erro ao salvar sessão:', err);
+                req.flash('error', 'Erro ao fazer login. Tente novamente.');
+                return res.redirect('/login');
+            }
+
+            console.log('✅ Sessão salva com sucesso!');
+            req.flash('success', `Bem-vindo(a) ${user.name}!`);
+            return res.redirect('/');
+        });
+    } catch (error) {
+        console.error('❌ Erro no login:', error);
+        req.flash('error', 'Erro ao fazer login. Tente novamente.');
+        res.redirect('/login');
     }
 };
 
@@ -162,9 +156,6 @@ export const register = async (req, res) => {
 // ============================================
 export const logout = (req, res) => {
     console.log('🚪 ===== LOGOUT CHAMADO =====');
-    console.log('📦 Session ID:', req.session?.id);
-    console.log('🆔 userId:', req.session?.userId);
-    console.log('👤 userName:', req.session?.userName);
 
     req.session.destroy((err) => {
         if (err) {
@@ -172,7 +163,6 @@ export const logout = (req, res) => {
             return res.status(500).send('Erro ao fazer logout');
         }
         console.log('👋 Logout realizado com sucesso!');
-        console.log('📍 Redirecionando para /login');
         res.redirect('/login');
     });
 };
@@ -180,33 +170,8 @@ export const logout = (req, res) => {
 // ============================================
 // MIDDLEWARE - VERIFICAR SE ESTÁ LOGADO
 // ============================================
-// export const isAuthenticated = (req, res, next) => {
-//     console.log('🔍 Verificando autenticação...');
-//     console.log('📦 Session:', req.session);
-//     console.log('🆔 userId:', req.session?.userId);
-
-//     if (!req.session || !req.session.userId) {
-//         console.log('❌ Não autenticado - redirecionando para login');
-//         // Salvar URL para redirecionar depois
-//         req.session.returnTo = req.originalUrl;
-//         req.flash('error', 'Faça login para acessar esta página');
-//         return res.redirect('/login');
-//     }
-//     // Verificar se o usuário ainda existe no banco
-//     const user = User.findById(req.session.userId);
-//     if (!user) {
-//         req.session.destroy();
-//         req.flash('error', 'Sessão inválida. Faça login novamente.');
-//         return res.redirect('/login');
-//     }
-
-//     console.log('✅ Usuário autenticado:', req.session.userId);
-//     next();
-// };
-// No authController.js
 export const isAuthenticated = (req, res, next) => {
     console.log('🔍 Verificando autenticação...');
-    console.log('📦 Session:', req.session);
     console.log('🆔 userId:', req.session?.userId);
 
     if (!req.session || !req.session.userId) {
@@ -216,10 +181,10 @@ export const isAuthenticated = (req, res, next) => {
         return res.redirect('/login');
     }
 
-    // ✅ JÁ ESTÁ AUTENTICADO - CONTINUAR
     console.log('✅ Usuário autenticado:', req.session.userId);
     next();
 };
+
 // ============================================
 // MIDDLEWARE - DADOS DO USUÁRIO PARA VIEWS
 // ============================================
@@ -246,5 +211,4 @@ export default {
     logout,
     isAuthenticated,
     addUserToLocals
-}
-
+};

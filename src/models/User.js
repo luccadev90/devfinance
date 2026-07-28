@@ -1,8 +1,4 @@
-// const mongoose = require('mongoose');
-// const bcrypt = require('bcryptjs');
-
 import mongoose from 'mongoose';
-import bcrypt from 'bcryptjs';
 
 const userSchema = new mongoose.Schema({
     name: {
@@ -24,31 +20,15 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: [true, 'Senha é obrigatória'],
         minlength: [6, 'Senha deve ter no mínimo 6 caracteres']
-    },
-    createdAt: {
-        type: Date,
-        default: Date.now
     }
 }, {
     timestamps: true
 });
 
-// Criptografar senha antes de salvar
-userSchema.pre('save', async function(next) {
-    if (!this.isModified('password')) return next();
-    
-    try {
-        const salt = await bcrypt.genSalt(10);
-        this.password = await bcrypt.hash(this.password, salt);
-        next();
-    } catch (error) {
-        next(error);
-    }
-});
-
-// Método para comparar senha
-userSchema.methods.comparePassword = async function(candidatePassword) {
-    return await bcrypt.compare(candidatePassword, this.password);
+// ✅ MÉTODO PARA COMPARAR SENHA (USANDO bcrypt.compare)
+userSchema.methods.comparePassword = async function (candidatePassword) {
+    const bcrypt = await import('bcryptjs');
+    return await bcrypt.default.compare(candidatePassword, this.password);
 };
 
 export default mongoose.model('User', userSchema);
